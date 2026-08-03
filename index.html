@@ -87,22 +87,18 @@
     <header><h1>Self Project</h1></header>
     <div class="card">
       <h2>Sign in</h2>
-      <div id="stepEmail">
-        <div class="field">
-          <label>Email</label>
-          <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
-        </div>
-        <button id="sendCode">Send me a code</button>
-        <p class="hint">You will get a 6-digit code by email. One sign-in and this phone stays logged in.</p>
+      <div class="field">
+        <label>Email</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
       </div>
-      <div id="stepCode" class="hide">
-        <div class="field">
-          <label>6-digit code</label>
-          <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" style="text-align:center;font-size:28px;letter-spacing:8px;font-weight:650">
-        </div>
-        <button id="verify">Sign in</button>
-        <button id="backToEmail" class="ghost sm" style="margin-top:10px">Use a different email</button>
+      <div class="field">
+        <label>Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="at least 6 characters">
       </div>
+      <button id="signIn">Sign in</button>
+      <button id="signUp" class="ghost sm" style="margin-top:10px">Create account (first time only)</button>
+      <p class="hint">Sign in once per device and you stay signed in. Save the password in your
+      password manager — there is no reset email set up.</p>
     </div>
   </div>
 
@@ -260,29 +256,27 @@ function toast(msg, bad) {
 function buzz(){ if (navigator.vibrate) navigator.vibrate(12); }
 
 /* ---------------- auth ---------------- */
-$('sendCode').onclick = async () => {
-  const email = $('email').value.trim();
-  if (!email) return toast('Enter your email', true);
-  $('sendCode').textContent = 'Sending...';
-  const { error } = await sb.auth.signInWithOtp({ email, options:{ shouldCreateUser:true } });
-  $('sendCode').textContent = 'Send me a code';
+function creds() {
+  const email = $('email').value.trim(), password = $('password').value;
+  if (!email) { toast('Enter your email', true); return null; }
+  if (password.length < 6) { toast('Password must be at least 6 characters', true); return null; }
+  return { email, password };
+}
+$('signIn').onclick = async () => {
+  const c = creds(); if (!c) return;
+  $('signIn').textContent = 'Signing in...';
+  const { error } = await sb.auth.signInWithPassword(c);
+  $('signIn').textContent = 'Sign in';
   if (error) return toast(error.message, true);
-  $('stepEmail').classList.add('hide');
-  $('stepCode').classList.remove('hide');
-  $('code').focus();
-  toast('Code sent');
+  location.reload();
 };
-$('backToEmail').onclick = () => {
-  $('stepCode').classList.add('hide');
-  $('stepEmail').classList.remove('hide');
-};
-$('verify').onclick = async () => {
-  const email = $('email').value.trim(), token = $('code').value.trim();
-  if (token.length < 6) return toast('Enter the 6-digit code', true);
-  $('verify').textContent = 'Checking...';
-  const { error } = await sb.auth.verifyOtp({ email, token, type:'email' });
-  $('verify').textContent = 'Sign in';
+$('signUp').onclick = async () => {
+  const c = creds(); if (!c) return;
+  $('signUp').textContent = 'Creating...';
+  const { data, error } = await sb.auth.signUp(c);
+  $('signUp').textContent = 'Create account (first time only)';
   if (error) return toast(error.message, true);
+  if (!data.session) return toast('Account made, but email confirmation is still on in Supabase', true);
   location.reload();
 };
 $('signOut').onclick = async () => { await sb.auth.signOut(); location.reload(); };
