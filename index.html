@@ -89,11 +89,17 @@
       <h2>Sign in</h2>
       <div class="field">
         <label>Email</label>
-        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com">
+        <input id="email" type="email" inputmode="email" autocomplete="email"
+               autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com">
       </div>
       <div class="field">
         <label>Password</label>
-        <input id="password" type="password" autocomplete="current-password" placeholder="at least 6 characters">
+        <div class="stepper">
+          <input id="password" type="password" autocomplete="current-password"
+                 autocapitalize="none" autocorrect="off" spellcheck="false"
+                 style="text-align:left;font-size:17px;font-weight:400" placeholder="at least 6 characters">
+          <button type="button" id="peek" style="width:72px;font-size:15px;font-weight:500">Show</button>
+        </div>
       </div>
       <button id="signIn">Sign in</button>
       <button id="signUp" class="ghost sm" style="margin-top:10px">Create account (first time only)</button>
@@ -125,7 +131,9 @@
         <div class="field">
           <label>Exercise</label>
           <div class="chips" id="exChips"></div>
-          <input id="exOther" class="hide" style="margin-top:10px" placeholder="Exercise name">
+          <select id="exPicker" style="margin-top:10px">
+            <option value="">Everything else...</option>
+          </select>
         </div>
         <div class="row">
           <div class="field">
@@ -181,24 +189,97 @@
       </div>
     </section>
 
-    <!-- ---- TRENDS ---- -->
-    <section id="v-trend" class="hide">
+    <!-- ---- CARDIO ---- -->
+    <section id="v-cardio" class="hide">
+      <div class="card">
+        <h2>Log activity</h2>
+        <div class="field">
+          <label>What</label>
+          <div class="chips" id="actKinds"></div>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="aDate" type="date">
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Minutes</label>
+            <div class="stepper">
+              <button type="button" data-step="aMin" data-d="-5">&minus;</button>
+              <input id="aMin" type="number" inputmode="numeric" value="30">
+              <button type="button" data-step="aMin" data-d="5">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Distance (optional)</label>
+            <input id="aDist" type="number" inputmode="decimal" step="0.1" placeholder="mi / yd">
+          </div>
+        </div>
+        <div class="field">
+          <label>Effort</label>
+          <div class="chips" id="actEffort"></div>
+        </div>
+        <div class="field"><label>Notes</label><input id="aNotes" placeholder="optional"></div>
+        <button id="saveAct">Log activity</button>
+      </div>
+      <div class="card">
+        <h2>Recent activity</h2>
+        <div id="actList"><p class="muted center" style="padding:8px 0">Nothing logged yet.</p></div>
+      </div>
+    </section>
+
+    <!-- ---- STATS ---- -->
+    <section id="v-stats" class="hide">
+      <div class="card">
+        <h2>Totals</h2>
+        <div id="sSummary"></div>
+      </div>
       <div class="card center">
-        <h2>7-day average</h2>
+        <h2>7-day weight average</h2>
         <div class="big" id="tAvg">--</div>
         <div class="sub" id="tChange">not enough data yet</div>
       </div>
       <div class="card">
-        <h2>Current bests</h2>
-        <div id="tBests"><p class="muted center">Nothing logged yet.</p></div>
+        <h2>Goals</h2>
+        <div id="goalList"><p class="muted center" style="padding:8px 0">No goals set.</p></div>
+        <button id="goalToggle" class="ghost sm" style="margin-top:12px">Add a goal</button>
+        <div id="goalForm" class="hide" style="margin-top:14px">
+          <div class="field">
+            <label>Type</label>
+            <div class="chips" id="goalKinds"></div>
+          </div>
+          <div id="goalLift">
+            <div class="field">
+              <label>Exercise</label>
+              <select id="gExercise"></select>
+            </div>
+            <div class="row">
+              <div class="field"><label>Load (lb)</label><input id="gLoad" type="number" inputmode="decimal"></div>
+              <div class="field"><label>For reps</label><input id="gReps" type="number" inputmode="numeric" value="5"></div>
+            </div>
+          </div>
+          <div id="goalValue" class="hide">
+            <div class="field"><label id="gValueLabel">Target</label><input id="gValue" type="number" inputmode="decimal"></div>
+          </div>
+          <div class="field"><label>Name it (optional)</label><input id="gLabel" placeholder="auto"></div>
+          <button id="saveGoal">Save goal</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Weekly volume by muscle</h2>
+        <p class="hint" style="margin:-6px 0 12px">Fractional sets: a direct set counts 1, a
+        meaningful secondary counts 0.5. 10&ndash;20 is the productive range.</p>
+        <div id="sVolume"><p class="muted center">Nothing logged yet.</p></div>
+      </div>
+      <div class="card">
+        <h2>Progressive overload</h2>
+        <p class="hint" style="margin:-6px 0 12px">Estimated 1RM, best in the last 4 weeks
+        versus the 4 weeks before. Bodyweight lifts include your bodyweight.</p>
+        <div id="sOverload"><p class="muted center">Nothing logged yet.</p></div>
       </div>
       <div class="card">
         <h2>Sessions by week</h2>
         <div id="tWeeks"><p class="muted center">Nothing logged yet.</p></div>
-      </div>
-      <div class="card">
-        <h2>Recent weigh-ins</h2>
-        <div id="tRecent"><p class="muted center">Nothing logged yet.</p></div>
       </div>
       <button id="signOut" class="ghost sm">Sign out</button>
     </section>
@@ -209,8 +290,9 @@
 
 <nav id="nav" class="hide">
   <button data-view="lift" class="on"><i>&#9679;</i>Lift</button>
+  <button data-view="cardio"><i>&#9708;</i>Cardio</button>
   <button data-view="body"><i>&#9632;</i>Body</button>
-  <button data-view="trend"><i>&#9650;</i>Trends</button>
+  <button data-view="stats"><i>&#9650;</i>Stats</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -224,21 +306,30 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
 });
 
-const ANCHORS = ['Weighted pull-up','Weighted dip','Squat pattern','Hinge pattern'];
-const TYPES   = ['A','B','Push','Pull','Micro'];
-const LOCS    = ['Home','Golds'];
+let CATALOG = [], BY_ID = {};
+const TYPES  = ['Push','Pull','A','B','Micro'];
+const LOCS   = ['Home','Golds'];
+const ACT_KINDS = ['Swim','Echo bike','Walk','Sprints','Hike','Other'];
+const EFFORTS   = ['Easy','Moderate','Hard'];
+const GOAL_KINDS = [['lift','Lift'],['bodyweight','Bodyweight'],['sessions','Sessions/wk']];
+const MUSCLE_ORDER = ['Chest','Back','Front delts','Side delts','Rear delts','Biceps',
+                      'Triceps','Quads','Hamstrings','Glutes','Calves','Core'];
 const $ = id => document.getElementById(id);
 const LS = { get:(k,d)=>{try{return JSON.parse(localStorage.getItem('sp_'+k))??d}catch{return d}},
              set:(k,v)=>localStorage.setItem('sp_'+k,JSON.stringify(v)) };
 
 let USER = null;
 let state = {
-  type: LS.get('type','A'),
-  loc:  LS.get('loc','Home'),
-  ex:   LS.get('ex', ANCHORS[0]),
+  type:  LS.get('type','Push'),
+  loc:   LS.get('loc','Home'),
+  exId:  LS.get('exId','weighted_pullup'),
+  actKind: LS.get('actKind','Swim'),
+  effort:  LS.get('effort','Moderate'),
+  goalKind: 'lift',
   workoutId: null,
   todaySets: []
 };
+const curEx = () => BY_ID[state.exId] || null;
 
 const todayISO = () => {
   const d = new Date(), p = n => String(n).padStart(2,'0');
@@ -256,8 +347,13 @@ function toast(msg, bad) {
 function buzz(){ if (navigator.vibrate) navigator.vibrate(12); }
 
 /* ---------------- auth ---------------- */
+$('peek').onclick = () => {
+  const p = $('password'), hidden = p.type === 'password';
+  p.type = hidden ? 'text' : 'password';
+  $('peek').textContent = hidden ? 'Hide' : 'Show';
+};
 function creds() {
-  const email = $('email').value.trim(), password = $('password').value;
+  const email = $('email').value.trim().toLowerCase(), password = $('password').value.trim();
   if (!email) { toast('Enter your email', true); return null; }
   if (password.length < 6) { toast('Password must be at least 6 characters', true); return null; }
   return { email, password };
@@ -300,18 +396,49 @@ function paintSession() {
     state.loc = v; LS.set('loc', v); paintSession(); syncWorkoutLocation();
   });
 }
-function paintExercises() {
-  const list = ANCHORS.concat(['Other']);
-  const cur = ANCHORS.includes(state.ex) ? state.ex : 'Other';
-  renderChips($('exChips'), list, cur, v => {
-    if (v === 'Other') { state.ex = ''; $('exOther').classList.remove('hide'); $('exOther').focus(); }
-    else { state.ex = v; LS.set('ex', v); $('exOther').classList.add('hide'); prefillFromLast(); }
-    paintExercises();
+async function loadCatalog() {
+  const { data } = await sb.from('exercise')
+    .select('id,name,is_anchor,counts_bodyweight,side,sort_order')
+    .order('sort_order');
+  CATALOG = data || [];
+  BY_ID = {};
+  CATALOG.forEach(e => { BY_ID[e.id] = e; });
+
+  const pick = $('exPicker');
+  pick.innerHTML = '<option value="">Everything else...</option>';
+  ['legs','push','pull'].forEach(side => {
+    const grp = document.createElement('optgroup');
+    grp.label = side === 'legs' ? 'Legs' : (side === 'push' ? 'Push' : 'Pull');
+    CATALOG.filter(e => e.side === side).forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.id; o.textContent = e.name; grp.appendChild(o);
+    });
+    pick.appendChild(grp);
   });
-  $('loadLabel').textContent =
-    (state.ex === 'Weighted pull-up' || state.ex === 'Weighted dip') ? 'Added load (lb)' : 'Load (lb)';
+
+  const gsel = $('gExercise');
+  gsel.innerHTML = '';
+  CATALOG.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.id; o.textContent = e.name; gsel.appendChild(o);
+  });
 }
-$('exOther').oninput = e => { state.ex = e.target.value.trim(); };
+function setExercise(id) {
+  state.exId = id; LS.set('exId', id);
+  paintExercises(); prefillFromLast();
+}
+function paintExercises() {
+  const anchors = CATALOG.filter(e => e.is_anchor);
+  const ex = curEx();
+  const isAnchor = ex && ex.is_anchor;
+  renderChips($('exChips'), anchors.map(e => e.name), isAnchor ? ex.name : null, name => {
+    const hit = anchors.filter(e => e.name === name)[0];
+    if (hit) setExercise(hit.id);
+  });
+  $('exPicker').value = isAnchor ? '' : state.exId;
+  $('loadLabel').textContent = (ex && ex.counts_bodyweight) ? 'Added load (lb)' : 'Load (lb)';
+}
+$('exPicker').onchange = e => { if (e.target.value) setExercise(e.target.value); };
 
 /* ---------------- steppers ---------------- */
 document.querySelectorAll('[data-step]').forEach(b => {
@@ -341,9 +468,9 @@ async function syncWorkoutLocation() {
   if (state.workoutId) await sb.from('workout').update({ location: state.loc }).eq('id', state.workoutId);
 }
 async function prefillFromLast() {
-  if (!state.ex) return;
+  const ex = curEx(); if (!ex) return;
   const { data } = await sb.from('lift_set').select('load_lb,reps,created_at')
-    .eq('exercise', state.ex).order('created_at', { ascending:false }).limit(1);
+    .eq('exercise_id', ex.id).order('created_at', { ascending:false }).limit(1);
   if (data && data.length) {
     $('load').value = data[0].load_lb ?? 0;
     $('reps').value = data[0].reps ?? 8;
@@ -353,16 +480,17 @@ async function prefillFromLast() {
   }
 }
 $('logSet').onclick = async () => {
-  if (!state.ex) return toast('Pick an exercise', true);
+  const ex = curEx();
+  if (!ex) return toast('Pick an exercise', true);
   const load = parseFloat($('load').value || '0');
   const reps = parseInt($('reps').value || '0', 10);
   if (!reps) return toast('Reps must be more than 0', true);
   try {
     const wid = await ensureWorkout();
-    const idx = state.todaySets.filter(s => s.exercise === state.ex).length + 1;
+    const idx = state.todaySets.filter(s => s.exercise_id === ex.id).length + 1;
     const { error } = await sb.from('lift_set').insert({
-      user_id: USER.id, workout_id: wid, exercise: state.ex,
-      is_anchor: ANCHORS.includes(state.ex), load_lb: load, reps, set_index: idx
+      user_id: USER.id, workout_id: wid, exercise: ex.name, exercise_id: ex.id,
+      is_anchor: ex.is_anchor, load_lb: load, reps: reps, set_index: idx
     });
     if (error) throw error;
     buzz(); toast('Set ' + idx + ' logged');
@@ -374,7 +502,7 @@ async function refreshToday() {
     .eq('performed_on', todayISO()).eq('session_type', state.type).limit(1);
   if (!w || !w.length) { state.workoutId = null; state.todaySets = []; return paintToday(); }
   state.workoutId = w[0].id;
-  const { data } = await sb.from('lift_set').select('id,exercise,load_lb,reps,set_index,created_at')
+  const { data } = await sb.from('lift_set').select('id,exercise,exercise_id,load_lb,reps,set_index,created_at')
     .eq('workout_id', state.workoutId).order('created_at', { ascending:true });
   state.todaySets = data || [];
   paintToday();
@@ -418,7 +546,7 @@ $('saveBody').onclick = async () => {
   if (error) return toast(error.message, true);
   buzz(); toast('Saved');
   $('bNotes').value = '';
-  loadTrends();
+  loadStats();
 };
 async function loadBodyForDate() {
   const { data } = await sb.from('body_log').select('*').eq('logged_on', $('bDate').value).limit(1);
@@ -431,18 +559,159 @@ async function loadBodyForDate() {
 $('bDate').onchange = loadBodyForDate;
 
 /* ---------------- trends ---------------- */
-async function loadTrends() {
-  const { data: wt } = await sb.from('weight_trend').select('*').order('logged_on', { ascending:false }).limit(30);
+/* ---------------- cardio ---------------- */
+function paintCardio() {
+  renderChips($('actKinds'), ACT_KINDS, state.actKind, v => {
+    state.actKind = v; LS.set('actKind', v); paintCardio();
+  });
+  renderChips($('actEffort'), EFFORTS, state.effort, v => {
+    state.effort = v; LS.set('effort', v); paintCardio();
+  });
+}
+$('saveAct').onclick = async () => {
+  const minutes = parseInt($('aMin').value || '0', 10);
+  if (!minutes) return toast('How many minutes?', true);
+  const { error } = await sb.from('activity').insert({
+    user_id: USER.id,
+    performed_on: $('aDate').value || todayISO(),
+    kind: state.actKind,
+    minutes: minutes,
+    distance: $('aDist').value ? parseFloat($('aDist').value) : null,
+    intensity: state.effort,
+    notes: $('aNotes').value || null
+  });
+  if (error) return toast(error.message, true);
+  buzz(); toast('Logged');
+  $('aDist').value = ''; $('aNotes').value = '';
+  loadActivity();
+};
+async function loadActivity() {
+  const { data } = await sb.from('activity').select('*')
+    .order('performed_on', { ascending:false }).limit(15);
+  const box = $('actList');
+  if (!data || !data.length) {
+    box.innerHTML = '<p class="muted center" style="padding:8px 0">Nothing logged yet.</p>';
+    return;
+  }
+  box.innerHTML = '';
+  data.forEach(a => {
+    const row = document.createElement('div'); row.className = 'setrow';
+    const e = document.createElement('span'); e.className = 'e';
+    e.textContent = a.kind + '  ' + a.performed_on;
+    const d = document.createElement('span'); d.className = 'd';
+    d.textContent = a.minutes + ' min' + (a.distance ? ' / ' + a.distance : '');
+    const x = document.createElement('button'); x.className = 'x'; x.textContent = 'x';
+    x.onclick = async () => { await sb.from('activity').delete().eq('id', a.id); buzz(); loadActivity(); };
+    row.appendChild(e); row.appendChild(d); row.appendChild(x);
+    box.appendChild(row);
+  });
+}
+
+/* ---------------- goals ---------------- */
+function paintGoalForm() {
+  renderChips($('goalKinds'), GOAL_KINDS.map(g => g[1]), (GOAL_KINDS.filter(g => g[0] === state.goalKind)[0] || [])[1],
+    label => {
+      state.goalKind = (GOAL_KINDS.filter(g => g[1] === label)[0] || [])[0];
+      paintGoalForm();
+    });
+  const isLift = state.goalKind === 'lift';
+  $('goalLift').classList.toggle('hide', !isLift);
+  $('goalValue').classList.toggle('hide', isLift);
+  $('gValueLabel').textContent = state.goalKind === 'bodyweight' ? 'Target weight (lb)' : 'Sessions per week';
+}
+$('goalToggle').onclick = () => {
+  const f = $('goalForm'), hidden = f.classList.contains('hide');
+  f.classList.toggle('hide');
+  $('goalToggle').textContent = hidden ? 'Cancel' : 'Add a goal';
+  if (hidden) paintGoalForm();
+};
+$('saveGoal').onclick = async () => {
+  const kind = state.goalKind;
+  const row = { user_id: USER.id, kind: kind, label: $('gLabel').value.trim() };
+  if (kind === 'lift') {
+    const ex = BY_ID[$('gExercise').value];
+    row.exercise_id = ex ? ex.id : null;
+    row.target_load = parseFloat($('gLoad').value || '0');
+    row.target_reps = parseInt($('gReps').value || '1', 10);
+    if (!row.exercise_id || !row.target_load) return toast('Pick an exercise and a load', true);
+    if (!row.label) row.label = ex.name + ' ' + row.target_load + ' lb x ' + row.target_reps;
+  } else {
+    row.target_value = parseFloat($('gValue').value || '0');
+    if (!row.target_value) return toast('Enter a target', true);
+    if (!row.label) row.label = kind === 'bodyweight'
+      ? 'Reach ' + row.target_value + ' lb'
+      : row.target_value + ' sessions a week';
+  }
+  const { error } = await sb.from('goal').insert(row);
+  if (error) return toast(error.message, true);
+  buzz(); toast('Goal set');
+  $('gLabel').value = ''; $('gLoad').value = ''; $('gValue').value = '';
+  $('goalForm').classList.add('hide'); $('goalToggle').textContent = 'Add a goal';
+  loadGoals();
+};
+async function loadGoals() {
+  const { data } = await sb.from('goal_status').select('*').order('created_at');
+  const box = $('goalList');
+  if (!data || !data.length) {
+    box.innerHTML = '<p class="muted center" style="padding:8px 0">No goals set.</p>';
+    return;
+  }
+  // Stamp newly-met goals so the achievement date sticks.
+  const fresh = data.filter(g => g.is_met && !g.achieved_on);
+  if (fresh.length) {
+    await Promise.all(fresh.map(g =>
+      sb.from('goal').update({ achieved_on: todayISO() }).eq('id', g.id)));
+    fresh.forEach(g => { g.achieved_on = todayISO(); });
+    toast(fresh.length === 1 ? 'Goal hit: ' + fresh[0].label : fresh.length + ' goals hit');
+  }
+  box.innerHTML = '';
+  data.forEach(g => {
+    const d = document.createElement('div'); d.className = 'stat';
+    const done = g.is_met || g.achieved_on;
+    const mark = document.createElement('span'); mark.className = 'k';
+    mark.innerHTML = (done ? '<span class="pos">&#10003; </span>' : '<span class="muted">&#9675; </span>') + g.label;
+    const v = document.createElement('span');
+    v.className = 'v ' + (done ? 'pos' : 'muted');
+    v.style.fontSize = '13px';
+    v.textContent = done ? (g.achieved_on || 'hit') : 'in progress';
+    const x = document.createElement('button'); x.className = 'x'; x.textContent = 'x';
+    x.style.marginLeft = '10px';
+    x.onclick = async () => { await sb.from('goal').delete().eq('id', g.id); buzz(); loadGoals(); };
+    d.appendChild(mark); d.appendChild(v); d.appendChild(x);
+    box.appendChild(d);
+  });
+}
+
+/* ---------------- stats ---------------- */
+function statRow(box, k, v, cls) {
+  const d = document.createElement('div'); d.className = 'stat';
+  d.innerHTML = '<span class="k">' + k + '</span><span class="v ' + (cls || '') + '">' + v + '</span>';
+  box.appendChild(d);
+}
+async function loadStats() {
+  const { data: sum } = await sb.from('training_summary').select('*').limit(1);
+  const box = $('sSummary'); box.innerHTML = '';
+  if (sum && sum.length) {
+    const s = sum[0];
+    statRow(box, 'Total sessions', s.total_sessions);
+    statRow(box, 'Total sets', s.total_sets);
+    statRow(box, 'Sessions this week', s.sessions_this_week,
+      s.sessions_this_week >= 4 ? 'pos' : (s.sessions_this_week >= 2 ? '' : 'neg'));
+    statRow(box, 'Sessions last 4 weeks', s.sessions_28d);
+    statRow(box, 'Cardio minutes, 4 weeks', s.activity_minutes_28d);
+  }
+
+  const { data: wt } = await sb.from('weight_trend').select('*')
+    .order('logged_on', { ascending:false }).limit(30);
   if (wt && wt.length) {
-    const latest = wt.find(r => r.avg_7d !== null);
+    const latest = wt.filter(r => r.avg_7d !== null)[0];
     if (latest) {
       $('tAvg').textContent = Number(latest.avg_7d).toFixed(1) + ' lb';
       const c = latest.change_vs_prior_week;
       if (c === null || c === undefined) {
         $('tChange').textContent = 'need about two weeks of data for a trend';
       } else {
-        const n = Number(c);
-        const dir = n >= 0 ? '+' : '';
+        const n = Number(c), dir = n >= 0 ? '+' : '';
         let verdict = 'on target';
         if (n < 0.15) verdict = 'flat - add 200 cal/day';
         else if (n > 0.6) verdict = 'fast - trim 150 cal/day';
@@ -450,37 +719,61 @@ async function loadTrends() {
           dir + n.toFixed(2) + ' lb/week - ' + verdict + '</span>';
       }
     }
-    $('tRecent').innerHTML = '';
-    wt.slice(0, 10).forEach(r => {
-      const d = document.createElement('div'); d.className = 'stat';
-      d.innerHTML = '<span class="k">' + r.logged_on + '</span><span class="v">' +
-        Number(r.weight_lb).toFixed(1) + '</span>';
-      $('tRecent').appendChild(d);
-    });
   }
-  const { data: bests } = await sb.from('anchor_progress').select('*');
-  if (bests && bests.length) {
-    $('tBests').innerHTML = '';
-    const order = e => { const i = ANCHORS.indexOf(e); return i < 0 ? 99 : i; };
-    bests.sort((a,b) => order(a.exercise) - order(b.exercise));
-    bests.forEach(b => {
-      const d = document.createElement('div'); d.className = 'stat';
-      d.innerHTML = '<span class="k">' + b.exercise + '</span><span class="v">' +
-        Number(b.best_load_lb).toFixed(0) + ' lb x ' + b.reps_at_best + '</span>';
-      $('tBests').appendChild(d);
+
+  const monday = (() => {
+    const d = new Date(); const day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day); const p = n => String(n).padStart(2,'0');
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+  })();
+  const { data: vol } = await sb.from('weekly_muscle_volume').select('*').eq('week_start', monday);
+  const vbox = $('sVolume'); vbox.innerHTML = '';
+  if (vol && vol.length) {
+    const map = {}; vol.forEach(v => { map[v.muscle] = Number(v.sets); });
+    MUSCLE_ORDER.forEach(m => {
+      const n = map[m] || 0;
+      let cls = 'neg', note = 'low';
+      if (n >= 10 && n <= 20) { cls = 'pos'; note = ''; }
+      else if (n > 20) { cls = ''; note = 'high'; }
+      else if (n >= 6) { cls = ''; note = 'maintaining'; }
+      statRow(vbox, m + (note ? ' <span class="muted" style="font-size:12px">' + note + '</span>' : ''),
+        n.toFixed(1), cls);
     });
+  } else {
+    vbox.innerHTML = '<p class="muted center">Nothing logged this week yet.</p>';
   }
+
+  const { data: prog } = await sb.from('exercise_progress').select('*')
+    .order('best_e1rm', { ascending:false });
+  const obox = $('sOverload'); obox.innerHTML = '';
+  if (prog && prog.length) {
+    prog.sort((a,b) => (b.is_anchor - a.is_anchor) || (b.best_e1rm - a.best_e1rm));
+    prog.forEach(p => {
+      let delta = '';
+      if (p.best_28d != null && p.best_prev_28d != null) {
+        const d = Number(p.best_28d) - Number(p.best_prev_28d);
+        const cls = d > 0 ? 'pos' : (d < 0 ? 'neg' : 'muted');
+        delta = ' <span class="' + cls + '" style="font-size:13px">' +
+          (d > 0 ? '+' : '') + d.toFixed(0) + '</span>';
+      }
+      statRow(obox, (p.is_anchor ? '<b>' + p.name + '</b>' : p.name) +
+        ' <span class="muted" style="font-size:12px">' + p.total_sets + ' sets</span>',
+        Number(p.best_e1rm).toFixed(0) + delta, '');
+    });
+  } else {
+    obox.innerHTML = '<p class="muted center">Nothing logged yet.</p>';
+  }
+
   const { data: wk } = await sb.from('weekly_sessions').select('*').limit(8);
+  const wbox = $('tWeeks'); wbox.innerHTML = '';
   if (wk && wk.length) {
-    $('tWeeks').innerHTML = '';
-    wk.forEach(r => {
-      const d = document.createElement('div'); d.className = 'stat';
-      const cls = r.sessions >= 4 ? 'pos' : (r.sessions >= 2 ? '' : 'neg');
-      d.innerHTML = '<span class="k">week of ' + r.week_start + '</span><span class="v ' + cls + '">' +
-        r.sessions + '</span>';
-      $('tWeeks').appendChild(d);
-    });
+    wk.forEach(r => statRow(wbox, 'week of ' + r.week_start, r.sessions,
+      r.sessions >= 4 ? 'pos' : (r.sessions >= 2 ? '' : 'neg')));
+  } else {
+    wbox.innerHTML = '<p class="muted center">Nothing logged yet.</p>';
   }
+
+  loadGoals();
 }
 
 /* ---------------- nav ---------------- */
@@ -488,10 +781,11 @@ document.querySelectorAll('nav button').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
-    ['lift','body','trend'].forEach(v =>
+    ['lift','cardio','body','stats'].forEach(v =>
       $('v-' + v).classList.toggle('hide', v !== b.dataset.view));
-    if (b.dataset.view === 'trend') loadTrends();
-    if (b.dataset.view === 'body') loadBodyForDate();
+    if (b.dataset.view === 'stats')  loadStats();
+    if (b.dataset.view === 'cardio') loadActivity();
+    if (b.dataset.view === 'body')   loadBodyForDate();
     window.scrollTo(0, 0);
   };
 });
@@ -506,8 +800,10 @@ document.querySelectorAll('nav button').forEach(b => {
   $('nav').classList.remove('hide');
   $('today').textContent = new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
   $('bDate').value = todayISO();
-  paintSession(); paintExercises();
-  await Promise.all([refreshToday(), prefillFromLast(), loadBodyForDate(), loadTrends()]);
+  $('aDate').value = todayISO();
+  await loadCatalog();
+  paintSession(); paintExercises(); paintCardio(); paintGoalForm();
+  await Promise.all([refreshToday(), prefillFromLast(), loadBodyForDate(), loadStats()]);
 })();
 </script>
 </body>
