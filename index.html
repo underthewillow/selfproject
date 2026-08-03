@@ -424,8 +424,18 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+/* ============================================================================
+   CONFIG — the only lines you need to change to run your own copy.
+   Create a free Supabase project, run schema.sql in its SQL editor, then paste
+   your project URL and publishable key here. Full walkthrough in README.md.
+   The publishable key is safe in public source: row level security is what
+   protects the data, and every table has it switched on.
+   ========================================================================== */
 const SUPABASE_URL = 'https://nzhgrimkakdioclcheoq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q4-bOc9uMog7sNBd5evLbQ_zxTvik7S';
+const WEEK_TARGET  = 4;   // sessions/week the progress ring counts toward
+/* ========================= end of config ================================= */
+
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
 });
@@ -449,7 +459,6 @@ const MUSCLE_ORDER = ['Chest','Back','Front delts','Side delts','Rear delts','Bi
 const BARBELL = ['squat','bench_press','incline_press','ohp','hinge_rdl','deadlift',
                  'trap_bar_dl','barbell_row','good_morning','push_press'];
 const PLATES = [45,35,25,10,5,2.5];
-const WEEK_TARGET = 4;
 
 let USER = null, CATALOG = [], BY_ID = {}, ROUTINES = [], ITEMS = {}, PRS = {};
 let S = {                       // live session
