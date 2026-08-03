@@ -76,6 +76,33 @@
   .spin{width:22px;height:22px;border:2px solid var(--line);border-top-color:var(--accent);
     border-radius:50%;animation:sp .7s linear infinite;margin:28px auto}
   @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ---- viz ---- */
+  .chart{position:relative;width:100%;margin-top:4px}
+  .chart svg{display:block;width:100%;height:auto}
+  .chart text{font-family:inherit;font-variant-numeric:tabular-nums}
+  .tip{position:absolute;pointer-events:none;background:#0d0d0d;border:1px solid var(--line);
+    border-radius:9px;padding:7px 10px;font-size:13px;color:var(--tx);white-space:nowrap;
+    opacity:0;transition:opacity .12s;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.55);
+    transform:translate(-50%,-125%)}
+  .tip.on{opacity:1}
+  .empty{color:var(--dim);text-align:center;padding:26px 0;font-size:14px}
+  .calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
+  .calhead span{font-size:15px;font-weight:650}
+  .calhead button{width:46px;padding:9px 0;font-size:19px}
+  .calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .caldow{text-align:center;font-size:11px;color:var(--dim);padding-bottom:2px}
+  .calday{aspect-ratio:1;border-radius:7px;border:1px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-size:12px;position:relative;color:var(--dim)}
+  .calday.has{color:#fff;font-weight:650;border-color:transparent}
+  .calday.today{outline:2px solid var(--accent);outline-offset:1px}
+  .calday.pad{opacity:.25}
+  .calday .dot{position:absolute;bottom:3px;right:3px;width:6px;height:6px;border-radius:50%;
+    background:#199e70;box-shadow:0 0 0 2px var(--card)}
+  .callegend{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:12px;
+    color:var(--dim);flex-wrap:wrap}
+  .swatch{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:-2px;
+    margin-right:5px;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -283,6 +310,49 @@
       </div>
       <button id="signOut" class="ghost sm">Sign out</button>
     </section>
+
+    <!-- ---- PROGRESS ---- -->
+    <section id="v-prog" class="hide">
+      <div class="card">
+        <h2>Training calendar</h2>
+        <div class="calhead">
+          <button id="calPrev" class="ghost sm">&#8249;</button>
+          <span id="calLabel"></span>
+          <button id="calNext" class="ghost sm">&#8250;</button>
+        </div>
+        <div class="calgrid" id="calDow"></div>
+        <div class="calgrid" id="calGrid" style="margin-top:4px"></div>
+        <div class="callegend">
+          <span><i class="swatch" style="background:#1c5cab"></i>1 session</span>
+          <span><i class="swatch" style="background:#3987e5"></i>2</span>
+          <span><i class="swatch" style="background:#86b6ef"></i>3+</span>
+          <span><i class="swatch" style="background:#199e70;border-radius:50%"></i>cardio</span>
+        </div>
+        <div id="calDetail" class="hint" style="min-height:20px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Weight &mdash; 7-day average (lb)</h2>
+        <div class="chart" id="chartWeight"></div>
+      </div>
+
+      <div class="card">
+        <h2>Lifting sessions per week</h2>
+        <div class="chart" id="chartSessions"></div>
+      </div>
+
+      <div class="card">
+        <h2>Estimated 1RM (lb)</h2>
+        <div class="chips" id="progExChips" style="margin-bottom:6px"></div>
+        <div class="chart" id="chartE1rm"></div>
+      </div>
+
+      <div class="card">
+        <h2>Weekly set volume &mdash; <span id="volMuscleName">all muscles</span></h2>
+        <div class="chips" id="progMuscleChips" style="margin-bottom:6px"></div>
+        <div class="chart" id="chartVolume"></div>
+      </div>
+    </section>
   </div>
 
   <div id="boot"><div class="spin"></div></div>
@@ -293,6 +363,7 @@
   <button data-view="cardio"><i>&#9708;</i>Cardio</button>
   <button data-view="body"><i>&#9632;</i>Body</button>
   <button data-view="stats"><i>&#9650;</i>Stats</button>
+  <button data-view="prog"><i>&#9636;</i>Progress</button>
 </nav>
 
 <div id="toast" class="toast"></div>
@@ -776,13 +847,242 @@ async function loadStats() {
   loadGoals();
 }
 
+/* ---------------- charts ---------------- */
+const NS  = 'http://www.w3.org/2000/svg';
+const VIZ = { s1:'#3987e5', s2:'#199e70', grid:'#2c2c2a', axis:'#383835', muted:'#898781', surf:'#181b22' };
+const SEQ = ['#1c5cab','#3987e5','#86b6ef'];
+
+function el(n, a) {
+  const x = document.createElementNS(NS, n);
+  for (const k in a) x.setAttribute(k, a[k]);
+  return x;
+}
+function tipFor(host) {
+  let t = host.querySelector('.tip');
+  if (!t) { t = document.createElement('div'); t.className = 'tip'; host.appendChild(t); }
+  return t;
+}
+function emptyChart(host, msg) { host.innerHTML = '<p class="empty">' + msg + '</p>'; }
+function niceTicks(lo, hi, n) {
+  if (hi <= lo) hi = lo + 1;
+  const raw = (hi - lo) / n;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const cand = [1,2,2.5,5,10].map(m => m * mag).filter(s => s >= raw);
+  const step = cand.length ? cand[0] : 10 * mag;
+  const out = [];
+  for (let v = Math.floor(lo/step)*step; v <= Math.ceil(hi/step)*step + 1e-9; v += step) {
+    out.push(Math.round(v * 100) / 100);
+  }
+  return out;
+}
+function axis(svg, ML, iw, ticks, Y) {
+  ticks.forEach(t => {
+    svg.appendChild(el('line', { x1:ML, x2:ML+iw, y1:Y(t), y2:Y(t), stroke:VIZ.grid, 'stroke-width':1 }));
+    const lab = el('text', { x:ML-8, y:Y(t)+4, fill:VIZ.muted, 'font-size':11, 'text-anchor':'end' });
+    lab.textContent = t; svg.appendChild(lab);
+  });
+}
+function xLabels(svg, rows, xOf, H, anchorEnds) {
+  const idx = [0, Math.floor((rows.length-1)/2), rows.length-1]
+    .filter((v,i,a) => a.indexOf(v) === i && v >= 0);
+  idx.forEach(i => {
+    const t = el('text', { x:xOf(i), y:H-8, fill:VIZ.muted, 'font-size':11,
+      'text-anchor': i === 0 ? 'start' : (i === rows.length-1 ? 'end' : 'middle') });
+    t.textContent = rows[i].label; svg.appendChild(t);
+  });
+}
+
+function lineChart(host, rows, unit) {
+  host.innerHTML = '';
+  if (!rows || rows.length < 2) return emptyChart(host, 'Need a few more days of data.');
+  const W=340, H=190, ML=42, MR=12, MT=14, MB=26, iw=W-ML-MR, ih=H-MT-MB;
+  const vals = rows.map(r => r.value);
+  const ticks = niceTicks(Math.min.apply(null, vals), Math.max.apply(null, vals), 4);
+  const lo = ticks[0], hi = ticks[ticks.length-1];
+  const X = i => ML + iw * i / (rows.length - 1);
+  const Y = v => MT + ih - ih * (v - lo) / (hi - lo);
+  const svg = el('svg', { viewBox:'0 0 '+W+' '+H, role:'img' });
+  axis(svg, ML, iw, ticks, Y);
+
+  let d = '';
+  rows.forEach((r,i) => { d += (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(r.value).toFixed(1) + ' '; });
+  svg.appendChild(el('path', { d:d, fill:'none', stroke:VIZ.s1, 'stroke-width':2,
+    'stroke-linejoin':'round', 'stroke-linecap':'round' }));
+  if (rows.length <= 24) {
+    rows.forEach((r,i) => svg.appendChild(el('circle', { cx:X(i), cy:Y(r.value), r:4,
+      fill:VIZ.s1, stroke:VIZ.surf, 'stroke-width':2 })));
+  }
+  xLabels(svg, rows, X, H);
+  svg.appendChild(el('line', { x1:ML, x2:ML+iw, y1:MT+ih, y2:MT+ih, stroke:VIZ.axis, 'stroke-width':1 }));
+
+  const cross = el('line', { x1:0, x2:0, y1:MT, y2:MT+ih, stroke:VIZ.axis, 'stroke-width':1, opacity:0 });
+  const dot   = el('circle', { r:5, fill:VIZ.s1, stroke:VIZ.surf, 'stroke-width':2, opacity:0 });
+  svg.appendChild(cross); svg.appendChild(dot);
+  const hit = el('rect', { x:ML, y:MT, width:iw, height:ih, fill:'transparent' });
+  svg.appendChild(hit);
+  host.appendChild(svg);
+  const tip = tipFor(host);
+
+  function move(ev) {
+    const box = svg.getBoundingClientRect();
+    const px = (ev.clientX - box.left) / box.width * W;
+    let i = Math.round((px - ML) / (iw / (rows.length - 1)));
+    i = Math.max(0, Math.min(rows.length - 1, i));
+    const r = rows[i];
+    cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('opacity', 1);
+    dot.setAttribute('cx', X(i)); dot.setAttribute('cy', Y(r.value)); dot.setAttribute('opacity', 1);
+    tip.textContent = r.label + '   ' + r.value + (unit || '');
+    tip.style.left = (X(i) / W * 100) + '%';
+    tip.style.top  = (Y(r.value) / H * 100) + '%';
+    tip.className = 'tip on';
+  }
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('pointerdown', move);
+  svg.addEventListener('pointerleave', () => {
+    tip.className = 'tip'; cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0);
+  });
+}
+
+function barChart(host, rows, unit, target) {
+  host.innerHTML = '';
+  if (!rows || !rows.length) return emptyChart(host, 'Nothing logged yet.');
+  const W=340, H=190, ML=42, MR=12, MT=14, MB=26, iw=W-ML-MR, ih=H-MT-MB;
+  const ticks = niceTicks(0, Math.max.apply(null, rows.map(r => r.value)), 4);
+  const hi = ticks[ticks.length-1] || 1;
+  const Y = v => MT + ih - ih * v / hi;
+  const slot = iw / rows.length, bw = Math.max(5, slot - 2);
+  const svg = el('svg', { viewBox:'0 0 '+W+' '+H, role:'img' });
+  axis(svg, ML, iw, ticks, Y);
+  if (target) {
+    svg.appendChild(el('line', { x1:ML, x2:ML+iw, y1:Y(target), y2:Y(target),
+      stroke:VIZ.s2, 'stroke-width':2, 'stroke-dasharray':'4 4' }));
+    const tl = el('text', { x:ML+iw, y:Y(target)-6, fill:VIZ.s2, 'font-size':10, 'text-anchor':'end' });
+    tl.textContent = 'target ' + target; svg.appendChild(tl);
+  }
+  const tip = tipFor(host);
+  rows.forEach((r,i) => {
+    const x = ML + slot*i + (slot-bw)/2, y = Y(r.value), h = MT+ih-y;
+    if (h <= 0.5) return;
+    const rr = Math.min(4, bw/2, h);
+    const p = el('path', { fill:VIZ.s1, d:
+      'M'+x+' '+(MT+ih)+' V'+(y+rr)+' Q'+x+' '+y+' '+(x+rr)+' '+y+
+      ' H'+(x+bw-rr)+' Q'+(x+bw)+' '+y+' '+(x+bw)+' '+(y+rr)+' V'+(MT+ih)+' Z' });
+    p.addEventListener('pointerenter', () => {
+      tip.textContent = r.label + '   ' + r.value + (unit || '');
+      tip.style.left = ((x+bw/2)/W*100) + '%';
+      tip.style.top  = (y/H*100) + '%';
+      tip.className = 'tip on';
+    });
+    p.addEventListener('pointerleave', () => { tip.className = 'tip'; });
+    svg.appendChild(p);
+  });
+  xLabels(svg, rows, i => ML + slot*i + slot/2, H);
+  svg.appendChild(el('line', { x1:ML, x2:ML+iw, y1:MT+ih, y2:MT+ih, stroke:VIZ.axis, 'stroke-width':1 }));
+  host.appendChild(svg);
+}
+
+/* ---------------- calendar ---------------- */
+let calMonth = null, progEx = null, progMuscle = 'All';
+const pad2 = n => String(n).padStart(2,'0');
+const isoOf = d => d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+
+async function loadCalendar() {
+  if (!calMonth) { const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1); }
+  const first = calMonth;
+  const last  = new Date(first.getFullYear(), first.getMonth()+1, 0);
+  const { data } = await sb.from('daily_log').select('*')
+    .gte('performed_on', isoOf(first)).lte('performed_on', isoOf(last));
+  const byDay = {}; (data || []).forEach(r => { byDay[r.performed_on] = r; });
+
+  $('calLabel').textContent = first.toLocaleDateString(undefined, { month:'long', year:'numeric' });
+  const dow = $('calDow'); dow.innerHTML = '';
+  ['M','T','W','T','F','S','S'].forEach(l => {
+    const c = document.createElement('div'); c.className = 'caldow'; c.textContent = l; dow.appendChild(c);
+  });
+  const grid = $('calGrid'); grid.innerHTML = '';
+  const lead = (first.getDay() + 6) % 7;
+  for (let i = 0; i < lead; i++) {
+    const c = document.createElement('div'); c.className = 'calday pad'; grid.appendChild(c);
+  }
+  for (let day = 1; day <= last.getDate(); day++) {
+    const key = isoOf(new Date(first.getFullYear(), first.getMonth(), day));
+    const rec = byDay[key];
+    const c = document.createElement('div');
+    c.className = 'calday' + (key === todayISO() ? ' today' : '');
+    c.textContent = day;
+    if (rec && rec.sessions > 0) {
+      c.classList.add('has');
+      c.style.background = SEQ[Math.min(rec.sessions, 3) - 1];
+    }
+    if (rec && rec.activities > 0) {
+      const dt = document.createElement('i'); dt.className = 'dot'; c.appendChild(dt);
+    }
+    if (rec) c.onclick = () => {
+      const bits = [];
+      if (rec.sessions) bits.push(rec.sessions + ' session' + (rec.sessions > 1 ? 's' : '') +
+        (rec.types ? ' (' + rec.types + ')' : '') + ', ' + rec.sets + ' sets');
+      if (rec.activities) bits.push(rec.kinds + ' ' + rec.activity_minutes + ' min');
+      $('calDetail').textContent = key + ' — ' + bits.join('  ·  ');
+      buzz();
+    };
+    grid.appendChild(c);
+  }
+}
+$('calPrev').onclick = () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1);
+  $('calDetail').textContent = ''; loadCalendar();
+};
+$('calNext').onclick = () => {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1);
+  $('calDetail').textContent = ''; loadCalendar();
+};
+
+/* ---------------- progress page ---------------- */
+async function loadProgress() {
+  loadCalendar();
+
+  const { data: wt } = await sb.from('weight_trend').select('*').order('logged_on');
+  lineChart($('chartWeight'), (wt || []).filter(r => r.avg_7d !== null)
+    .map(r => ({ label: r.logged_on.slice(5), value: Number(r.avg_7d) })), ' lb');
+
+  const { data: wk } = await sb.from('weekly_sessions').select('*').limit(12);
+  barChart($('chartSessions'), (wk || []).slice().reverse()
+    .map(r => ({ label: r.week_start.slice(5), value: Number(r.sessions) })), '', 4);
+
+  const { data: series } = await sb.from('exercise_e1rm_daily').select('*').order('performed_on');
+  const names = [];
+  (series || []).forEach(r => { if (names.indexOf(r.name) < 0) names.push(r.name); });
+  if (!names.length) {
+    $('progExChips').innerHTML = '';
+    emptyChart($('chartE1rm'), 'Log some sets first.');
+  } else {
+    if (!progEx || names.indexOf(progEx) < 0) progEx = names[0];
+    renderChips($('progExChips'), names.slice(0, 8), progEx, v => { progEx = v; loadProgress(); });
+    lineChart($('chartE1rm'), (series || []).filter(r => r.name === progEx)
+      .map(r => ({ label: r.performed_on.slice(5), value: Number(r.e1rm) })), ' lb');
+  }
+
+  const { data: vm } = await sb.from('weekly_muscle_volume').select('*').order('week_start');
+  const { data: vt } = await sb.from('weekly_total_volume').select('*').order('week_start');
+  const seen = {}; (vm || []).forEach(r => { seen[r.muscle] = 1; });
+  renderChips($('progMuscleChips'), ['All'].concat(MUSCLE_ORDER.filter(m => seen[m])),
+    progMuscle, v => { progMuscle = v; loadProgress(); });
+  $('volMuscleName').textContent = progMuscle === 'All' ? 'all muscles' : progMuscle;
+  const src = progMuscle === 'All'
+    ? (vt || []).map(r => ({ label: r.week_start.slice(5), value: Number(r.total_sets) }))
+    : (vm || []).filter(r => r.muscle === progMuscle)
+                .map(r => ({ label: r.week_start.slice(5), value: Number(r.sets) }));
+  barChart($('chartVolume'), src.slice(-12), ' sets', progMuscle === 'All' ? null : 10);
+}
+
 /* ---------------- nav ---------------- */
 document.querySelectorAll('nav button').forEach(b => {
   b.onclick = () => {
     document.querySelectorAll('nav button').forEach(x => x.classList.remove('on'));
     b.classList.add('on');
-    ['lift','cardio','body','stats'].forEach(v =>
+    ['lift','cardio','body','stats','prog'].forEach(v =>
       $('v-' + v).classList.toggle('hide', v !== b.dataset.view));
+    if (b.dataset.view === 'prog')   loadProgress();
     if (b.dataset.view === 'stats')  loadStats();
     if (b.dataset.view === 'cardio') loadActivity();
     if (b.dataset.view === 'body')   loadBodyForDate();
