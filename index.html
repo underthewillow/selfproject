@@ -421,6 +421,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
         <div id="calDetail" class="hint" style="min-height:20px"></div>
       </div>
       <div class="card"><h2>Weight &mdash; 7-day average (lb)</h2><div class="chart" id="chartWeight"></div></div>
+      <div class="card"><h2>Waist (in)</h2><div class="chart" id="chartWaist"></div></div>
       <div class="card"><h2>Lifting sessions per week</h2><div class="chart" id="chartSessions"></div></div>
       <div class="card">
         <h2>Estimated 1RM (lb)</h2>
@@ -478,7 +479,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 const SUPABASE_URL = 'https://nzhgrimkakdioclcheoq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q4-bOc9uMog7sNBd5evLbQ_zxTvik7S';
 const WEEK_TARGET  = 4;   // sessions/week the progress ring counts toward
+const MODE         = 'recomp';   // 'bulk' | 'recomp' | 'cut' — drives the weight verdict
 /* ========================= end of config ================================= */
+
+// Weekly change in the 7-day average, in lb, that each mode is aiming for.
+// Outside the band you get told which way to move; inside it you're on target.
+const MODES = {
+  bulk:   { lo:  0.15, hi:  0.60, under: 'flat — add 200 cal/day',
+            over: 'fast — trim 150 cal/day',    ok: 'on target' },
+  recomp: { lo: -0.60, hi:  0.40, under: 'dropping fast — add 150 cal/day',
+            over: 'gaining — trim 150 cal/day', ok: 'holding — watch waist and lifts' },
+  cut:    { lo: -1.20, hi: -0.25, under: 'too fast — add 150 cal/day',
+            over: 'stalled — trim 150 cal/day', ok: 'on target' }
+};
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage }
@@ -1167,14 +1180,28 @@ async function loadStats() {
       const c = latest.change_vs_prior_week;
       if (c == null) $('tChange').textContent = 'need about two weeks for a trend';
       else {
-        const n = Number(c);
-        let verdict = 'on target';
-        if (n < 0.15) verdict = 'flat — add 200 cal/day';
-        else if (n > 0.6) verdict = 'fast — trim 150 cal/day';
-        $('tChange').innerHTML = '<span class="' + (verdict === 'on target' ? 'pos' : '') + '">' +
-          (n>=0?'+':'') + n.toFixed(2) + ' lb/week · ' + verdict + '</span>';
+        const n = Number(c), m = MODES[MODE] || MODES.recomp;
+        const onTarget = n >= m.lo && n <= m.hi;
+        const verdict = onTarget ? m.ok : (n < m.lo ? m.under : m.over);
+        $('tChange').innerHTML = '<span class="' + (onTarget ? 'pos' : '') + '">' +
+          (n >= 0 ? '+' : '') + n.toFixed(2) + ' lb/week · ' + verdict + '</span>';
       }
     }
+  }
+
+  // Waist — the primary fat signal on a recomp, since the scale is meant to hold.
+  const { data: wa } = await sb.from('body_log').select('logged_on,waist_in')
+    .not('waist_in','is',null).order('logged_on');
+  if (wa && wa.length) {
+    const first = Number(wa[0].waist_in), last = Number(wa[wa.length-1].waist_in);
+    const d = last - first;
+    statRow(box, 'Waist now', last.toFixed(1) + '"');
+    if (wa.length > 1) {
+      statRow(box, 'Waist since ' + wa[0].logged_on,
+        (d > 0 ? '+' : '') + d.toFixed(1) + '"', d <= 0 ? 'pos' : 'neg');
+    }
+  } else {
+    statRow(box, 'Waist', '<span class="muted" style="font-size:14px">log one on the Body tab</span>');
   }
   const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay()+6)%7));
   const { data: vol } = await sb.from('weekly_muscle_volume').select('*').eq('week_start', isoOf(mon));
@@ -1440,6 +1467,11 @@ async function loadProgress(){
   const { data: wt } = await sb.from('weight_trend').select('*').order('logged_on');
   lineChart($('chartWeight'), (wt||[]).filter(r=>r.avg_7d!==null)
     .map(r=>({label:r.logged_on.slice(5),value:Number(r.avg_7d)})),' lb');
+  const { data: wa } = await sb.from('body_log').select('logged_on,waist_in')
+    .not('waist_in','is',null).order('logged_on');
+  lineChart($('chartWaist'), (wa||[])
+    .map(r=>({label:r.logged_on.slice(5),value:Number(r.waist_in)})),'"');
+
   const { data: wk } = await sb.from('weekly_sessions').select('*').limit(12);
   barChart($('chartSessions'), (wk||[]).slice().reverse()
     .map(r=>({label:r.week_start.slice(5),value:Number(r.sessions)})),'',WEEK_TARGET);
