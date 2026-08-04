@@ -98,8 +98,19 @@ create table public.lift_set (
   is_anchor   boolean not null default false,
   load_lb     numeric(6,1),
   reps        integer,
-  set_index   integer not null default 1,
+  set_index   integer not null default 1,   -- historical; the app numbers sets on read
+  is_warmup   boolean not null default false,
   created_at  timestamptz not null default now()
+);
+
+-- Per-exercise notes within a session. Session-level notes live on workout.notes.
+create table public.workout_exercise (
+  workout_id  uuid not null references public.workout(id) on delete cascade,
+  exercise_id text not null references public.exercise(id),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  note        text,
+  updated_at  timestamptz not null default now(),
+  primary key (workout_id, exercise_id)
 );
 
 -- Non-lifting work: swimming, cycling, walks, sprints, hikes.
@@ -140,6 +151,7 @@ create index on public.workout  (user_id, performed_on desc);
 create index on public.lift_set (user_id, exercise, created_at desc);
 create index on public.lift_set (user_id, exercise_id, created_at desc);
 create index on public.lift_set (workout_id);
+create index on public.lift_set (workout_id, is_warmup);
 create index on public.activity (user_id, performed_on desc);
 create index on public.goal     (user_id, achieved_on);
 
@@ -151,9 +163,10 @@ create index on public.goal     (user_id, achieved_on);
 -- signed-in users and writable by nobody through the API.
 -- =============================================================================
 
-alter table public.body_log        enable row level security;
-alter table public.workout         enable row level security;
-alter table public.lift_set        enable row level security;
+alter table public.body_log          enable row level security;
+alter table public.workout           enable row level security;
+alter table public.lift_set          enable row level security;
+alter table public.workout_exercise  enable row level security;
 alter table public.activity        enable row level security;
 alter table public.goal            enable row level security;
 alter table public.exercise        enable row level security;
@@ -166,6 +179,8 @@ create policy "own rows" on public.body_log
 create policy "own rows" on public.workout
   for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on public.lift_set
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own rows" on public.workout_exercise
   for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own rows" on public.activity
   for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -211,7 +226,8 @@ select logged_on, weight_lb, avg_7d,
        round(avg_7d - lag(avg_7d, 7) over (order by logged_on), 2) as change_vs_prior_week
 from base;
 
--- Fractional weekly volume per muscle group.
+-- Fractional weekly volume per muscle group. Warm-up sets are excluded everywhere —
+-- they're recorded for your own reference but never counted as stimulus.
 create view public.weekly_muscle_volume
 with (security_invoker = true) as
 select date_trunc('week', w.performed_on)::date as week_start,
@@ -220,6 +236,7 @@ select date_trunc('week', w.performed_on)::date as week_start,
 from public.lift_set ls
 join public.workout w          on w.id = ls.workout_id
 join public.exercise_muscle em on em.exercise_id = ls.exercise_id
+where not ls.is_warmup
 group by 1, 2;
 
 create view public.weekly_total_volume
@@ -250,7 +267,7 @@ select e.id as exercise_id, e.name, e.is_anchor, w.performed_on,
 from public.lift_set ls
 join public.workout  w on w.id = ls.workout_id
 join public.exercise e on e.id = ls.exercise_id
-where ls.reps > 0 and ls.load_lb is not null
+where ls.reps > 0 and ls.load_lb is not null and not ls.is_warmup
 group by 1, 2, 3, 4;
 
 -- Best ever, best in the last 4 weeks, and best in the 4 weeks before that.
@@ -282,7 +299,9 @@ with days as (
 ),
 lifts as (
   select w.performed_on, count(distinct w.id) as sessions,
-         string_agg(distinct w.session_type, '/') as types, count(ls.id) as sets
+         string_agg(distinct w.session_type, '/') as types,
+         count(ls.id) filter (where not ls.is_warmup) as sets,
+         round(extract(epoch from (max(ls.created_at) - min(ls.created_at))) / 60)::int as minutes
   from public.workout w
   left join public.lift_set ls on ls.workout_id = w.id
   group by 1
@@ -296,6 +315,7 @@ select d.performed_on,
        coalesce(l.sessions, 0)   as sessions,
        l.types,
        coalesce(l.sets, 0)       as sets,
+       coalesce(l.minutes, 0)    as lift_minutes,
        coalesce(a.activities, 0) as activities,
        a.kinds,
        coalesce(a.minutes, 0)    as activity_minutes
@@ -303,11 +323,24 @@ from days d
 left join lifts l on l.performed_on = d.performed_on
 left join acts  a on a.performed_on = d.performed_on;
 
+-- Full detail for one session, including elapsed time. Powers the calendar day view.
+create view public.session_detail
+with (security_invoker = true) as
+select w.id, w.performed_on, w.session_type, w.location, w.notes,
+       min(ls.created_at) as started_at,
+       max(ls.created_at) as ended_at,
+       coalesce(round(extract(epoch from (max(ls.created_at) - min(ls.created_at))) / 60)::int, 0) as minutes,
+       count(*) filter (where not ls.is_warmup) as work_sets,
+       count(*) filter (where ls.is_warmup)     as warmup_sets
+from public.workout w
+left join public.lift_set ls on ls.workout_id = w.id
+group by w.id, w.performed_on, w.session_type, w.location, w.notes;
+
 create view public.training_summary
 with (security_invoker = true) as
 select
   (select count(*) from public.workout)  as total_sessions,
-  (select count(*) from public.lift_set) as total_sets,
+  (select count(*) from public.lift_set where not is_warmup) as total_sets,
   (select count(*) from public.activity) as total_activities,
   (select count(*) from public.workout
      where performed_on >= date_trunc('week', current_date)::date) as sessions_this_week,
@@ -323,7 +356,7 @@ select g.id, g.kind, g.label, g.exercise_id, g.target_load, g.target_reps,
   case g.kind
     when 'lift' then exists (
       select 1 from public.lift_set ls
-      where ls.exercise_id = g.exercise_id
+      where ls.exercise_id = g.exercise_id and not ls.is_warmup
         and ls.load_lb >= coalesce(g.target_load, 0)
         and ls.reps    >= coalesce(g.target_reps, 1))
     when 'bodyweight' then coalesce(

@@ -66,6 +66,9 @@ button.xs{padding:8px 12px;font-size:14px;min-height:38px;border-radius:10px}
   flex:1 1 0;min-width:0;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stepper button{width:60px;flex:0 0 60px;font-size:26px;background:var(--card2);color:var(--tx);
   border:1px solid var(--line);font-weight:400;padding:0;min-height:0}
+.stepper input[type=number]{-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,
+.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 
 nav{position:fixed;left:0;right:0;bottom:0;background:rgba(11,13,17,.93);
   backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;
@@ -123,9 +126,34 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
   background:var(--card3);padding:9px 12px;border-radius:10px}
 .setlist{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
 .setpill{background:var(--card3);border:1px solid var(--line);border-radius:9px;
-  padding:7px 11px;font-size:13px;font-variant-numeric:tabular-nums;color:var(--tx2)}
+  padding:7px 11px;font-size:13px;font-variant-numeric:tabular-nums;color:var(--tx2);
+  white-space:nowrap;flex:none}
 .setpill b{color:var(--tx)}
 .plates{font-size:12px;color:var(--dim);margin-top:8px;text-align:center}
+.setpill.warm{opacity:.55;border-style:dashed}
+.pip.extra{background:var(--ok);border-color:var(--ok)}
+.exnote{width:100%;background:var(--card3);border:1px solid var(--line);border-radius:10px;
+  color:var(--tx);padding:11px 12px;font-size:14px;font-family:inherit;outline:none;
+  min-height:46px;margin-top:12px;resize:vertical;line-height:1.4}
+.exnote:focus{border-color:var(--accent)}
+.exrow{display:flex;gap:8px;margin-top:12px}
+.exrow button{flex:1;min-height:44px;padding:10px;font-size:14px}
+.wtog{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.wtog span{font-size:13px;color:var(--dim)}
+.sheet{position:fixed;inset:0;background:rgba(5,7,10,.72);z-index:80;display:flex;
+  align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheet.on{opacity:1;pointer-events:auto}
+.sheet .inner{background:var(--card);border-top-left-radius:22px;border-top-right-radius:22px;
+  border-top:1px solid var(--line);width:100%;max-height:82vh;overflow-y:auto;
+  padding:20px 18px calc(28px + env(safe-area-inset-bottom));
+  transform:translateY(12px);transition:transform .22s cubic-bezier(.3,1.1,.5,1);
+  max-width:560px;margin:0 auto}
+.sheet.on .inner{transform:translateY(0)}
+.sheet h3{font-size:20px;font-weight:700;margin:0 0 4px}
+.sheet .meta{color:var(--dim);font-size:14px;margin-bottom:16px}
+.exblock{margin-bottom:16px}
+.exblock > b{font-size:15px;display:block;margin-bottom:6px}
+.exblock .note{font-size:13px;color:var(--tx2);font-style:italic;margin-top:6px}
 
 /* rest timer */
 .rest{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));
@@ -266,6 +294,13 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
             <div class="muted" style="font-size:13px" id="sessMeta">Start one from Today</div>
           </div>
           <button class="quiet xs" id="finishBtn" style="width:auto">Finish</button>
+        </div>
+        <div id="sessTools" class="hide">
+          <textarea id="sessNote" class="exnote"
+            placeholder="Session notes — how it went, sleep, equipment, anything worth remembering"></textarea>
+          <div class="exrow">
+            <button class="quiet" id="deleteSess">Delete this session</button>
+          </div>
         </div>
       </div>
       <div id="exList"></div>
@@ -419,6 +454,15 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
   <button data-view="prog"><i>&#9636;</i>Progress</button>
 </nav>
 
+<div class="sheet" id="daySheet">
+  <div class="inner">
+    <h3 id="dayTitle"></h3>
+    <div class="meta" id="dayMeta"></div>
+    <div id="dayBody"></div>
+    <button class="ghost sm" id="dayClose" style="margin-top:18px">Close</button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script type="module">
@@ -463,7 +507,8 @@ const PLATES = [45,35,25,10,5,2.5];
 let USER = null, CATALOG = [], BY_ID = {}, ROUTINES = [], ITEMS = {}, PRS = {};
 let S = {                       // live session
   routineId: null, name: null, loc: LS.get('loc','Golds'),
-  workoutId: null, items: [], activeIdx: 0, sets: {}
+  workoutId: null, items: [], activeIdx: 0, sets: {}, notes: {},
+  sessionNote: '', warm: false
 };
 
 /* ---------- toast ---------- */
@@ -627,7 +672,8 @@ async function loadToday() {
     const b  = document.createElement('div');
     b.className = 'b' + (rec && rec.sessions ? ' on' : (rec && rec.activities ? ' act' : ''))
                 + (key === todayISO() ? ' today' : '');
-    b.textContent = rec && rec.sessions ? rec.sessions : (rec && rec.activities ? '●' : '');
+    // A tick, never a number — on the calendar a number always means the date.
+    b.textContent = rec && rec.sessions ? '✓' : (rec && rec.activities ? '•' : '');
     wrap.appendChild(dl); wrap.appendChild(b); strip.appendChild(wrap);
   });
   $('ringN').textContent = count;
@@ -695,9 +741,10 @@ document.querySelectorAll('[data-jump]').forEach(b => { b.onclick = () => go(b.d
 /* ---------- session ---------- */
 async function startSession() {
   const its = (ITEMS[S.routineId] || []).slice();
-  const { data: found } = await sb.from('workout').select('id')
+  S.sessionNote = ''; S.warm = false;
+  const { data: found } = await sb.from('workout').select('id,notes')
     .eq('performed_on', todayISO()).eq('session_type', S.name).limit(1);
-  if (found && found.length) S.workoutId = found[0].id;
+  if (found && found.length) { S.workoutId = found[0].id; S.sessionNote = found[0].notes || ''; }
   else {
     const { data, error } = await sb.from('workout').insert({
       user_id: USER.id, performed_on: todayISO(), session_type: S.name, location: S.loc
@@ -717,24 +764,38 @@ async function startSession() {
 async function refreshSets() {
   if (!S.workoutId) return;
   const { data } = await sb.from('lift_set')
-    .select('id,exercise_id,load_lb,reps,set_index,created_at')
+    .select('id,exercise_id,load_lb,reps,is_warmup,created_at')
     .eq('workout_id', S.workoutId).order('created_at');
   S.sets = {};
   (data || []).forEach(s => { (S.sets[s.exercise_id] = S.sets[s.exercise_id] || []).push(s); });
+  // Set numbers are derived on read, never stored — deleting renumbers cleanly and
+  // fast consecutive logs can't collide.
+  Object.keys(S.sets).forEach(k => {
+    let n = 0;
+    S.sets[k].forEach(s => { s.n = s.is_warmup ? null : ++n; });
+  });
+  const { data: notes } = await sb.from('workout_exercise')
+    .select('exercise_id,note').eq('workout_id', S.workoutId);
+  S.notes = {};
+  (notes || []).forEach(r => { S.notes[r.exercise_id] = r.note; });
 }
+const workSets = list => (list || []).filter(s => !s.is_warmup);
 function paintSession() {
   $('sessName').textContent = S.name || 'No session';
   const total = S.items.reduce((a,i) => a + i.target, 0);
-  const done  = S.items.reduce((a,i) => a + (S.sets[i.exId] || []).length, 0);
+  const done  = S.items.reduce((a,i) => a + workSets(S.sets[i.exId]).length, 0);
   $('sessMeta').textContent = S.items.length
     ? S.loc + ' · ' + done + ' of ' + total + ' sets'
     : 'Start one from Today';
+  $('sessNote').value = S.sessionNote || '';
+  $('sessTools').classList.toggle('hide', !S.items.length);
 
   const list = $('exList'); list.innerHTML = '';
   S.items.forEach((it, idx) => {
     const ex = BY_ID[it.exId]; if (!ex) return;
     const logged = S.sets[it.exId] || [];
-    const isDone = logged.length >= it.target;
+    const work = workSets(logged);
+    const isDone = work.length >= it.target;
     const active = idx === S.activeIdx;
 
     const card = document.createElement('div');
@@ -747,9 +808,9 @@ function paintSession() {
     nm.innerHTML = '<b>' + ex.name + (it.core ? '' : ' <span class="muted" style="font-weight:400">optional</span>') +
       '</b><span>' + it.target + ' × ' + it.lo + '–' + it.hi + ' reps</span>';
     const pips = document.createElement('div'); pips.className = 'pips';
-    for (let i = 0; i < it.target; i++) {
+    for (let i = 0; i < Math.max(it.target, work.length); i++) {
       const p = document.createElement('div');
-      p.className = 'pip' + (i < logged.length ? ' on' : '');
+      p.className = 'pip' + (i < work.length ? (i >= it.target ? ' on extra' : ' on') : '');
       pips.appendChild(p);
     }
     head.appendChild(nm); head.appendChild(pips);
@@ -776,17 +837,35 @@ function paintSession() {
       const plates = document.createElement('div'); plates.className = 'plates'; plates.id = 'plates';
       body.appendChild(plates);
 
+      const wt = document.createElement('div'); wt.className = 'wtog';
+      wt.innerHTML = '<span>Warm-up sets don’t count toward volume or bests</span>';
+      const wchip = document.createElement('div');
+      wchip.className = 'chip' + (S.warm ? ' on' : '');
+      wchip.textContent = 'Warm-up';
+      wchip.onclick = () => { S.warm = !S.warm; buzz(); paintSession(); };
+      wt.appendChild(wchip);
+      body.appendChild(wt);
+
       const btn = document.createElement('button');
-      btn.textContent = 'Log set ' + (logged.length + 1);
+      btn.textContent = S.warm ? 'Log warm-up set' : 'Log set ' + (work.length + 1);
       btn.style.marginTop = '14px';
       btn.onclick = () => logSet(it, idx);
       body.appendChild(btn);
 
+      if (isDone && idx < S.items.length - 1) {
+        const nx = document.createElement('button');
+        nx.className = 'ghost sm'; nx.style.marginTop = '10px';
+        nx.textContent = 'Next: ' + (BY_ID[S.items[idx+1].exId] || {}).name;
+        nx.onclick = () => { S.activeIdx = idx + 1; buzz(); paintSession(); };
+        body.appendChild(nx);
+      }
+
       if (logged.length) {
         const sl = document.createElement('div'); sl.className = 'setlist';
-        logged.forEach((s,i) => {
-          const p = document.createElement('div'); p.className = 'setpill';
-          p.innerHTML = (i+1) + '. <b>' + (s.load_lb || 0) + '</b> × <b>' + s.reps + '</b>';
+        logged.forEach(s => {
+          const p = document.createElement('div');
+          p.className = 'setpill' + (s.is_warmup ? ' warm' : '');
+          p.innerHTML = (s.is_warmup ? 'W' : s.n) + '. <b>' + (s.load_lb || 0) + '</b> × <b>' + s.reps + '</b>';
           p.onclick = async () => {
             await sb.from('lift_set').delete().eq('id', s.id);
             buzz(); await refreshSets(); paintSession();
@@ -795,6 +874,21 @@ function paintSession() {
         });
         body.appendChild(sl);
       }
+
+      const note = document.createElement('textarea');
+      note.className = 'exnote'; note.id = 'exNote';
+      note.placeholder = 'Notes on ' + ex.name + ' — how it felt, equipment, niggles...';
+      note.value = S.notes[it.exId] || '';
+      note.onblur = () => saveExerciseNote(it.exId, note.value);
+      body.appendChild(note);
+
+      const acts = document.createElement('div'); acts.className = 'exrow';
+      const rm = document.createElement('button');
+      rm.className = 'quiet'; rm.textContent = 'Remove exercise';
+      rm.onclick = () => removeExercise(it, idx);
+      acts.appendChild(rm);
+      body.appendChild(acts);
+
       card.appendChild(body);
     }
     list.appendChild(card);
@@ -806,9 +900,35 @@ function paintSession() {
   bindSteppers();
   if (S.items[S.activeIdx]) prefill(S.items[S.activeIdx]);
 }
+async function saveExerciseNote(exId, text) {
+  const note = (text || '').trim();
+  S.notes[exId] = note;
+  if (!S.workoutId) return;
+  await sb.from('workout_exercise').upsert(
+    { workout_id: S.workoutId, exercise_id: exId, user_id: USER.id, note: note || null,
+      updated_at: new Date().toISOString() },
+    { onConflict: 'workout_id,exercise_id' });
+}
+async function removeExercise(it, idx) {
+  const logged = S.sets[it.exId] || [];
+  if (logged.length && !confirm('Remove ' + (BY_ID[it.exId]||{}).name + ' and its ' +
+      logged.length + ' logged set' + (logged.length>1?'s':'') + '?')) return;
+  if (logged.length && S.workoutId) {
+    await sb.from('lift_set').delete().eq('workout_id', S.workoutId).eq('exercise_id', it.exId);
+  }
+  if (S.workoutId) {
+    await sb.from('workout_exercise').delete()
+      .eq('workout_id', S.workoutId).eq('exercise_id', it.exId);
+  }
+  S.items.splice(idx, 1);
+  if (S.activeIdx >= S.items.length) S.activeIdx = S.items.length - 1;
+  buzz(); toast('Removed');
+  await refreshSets(); paintSession();
+}
 async function prefill(it) {
   const { data } = await sb.from('lift_set').select('load_lb,reps,created_at')
-    .eq('exercise_id', it.exId).order('created_at',{ascending:false}).limit(1);
+    .eq('exercise_id', it.exId).eq('is_warmup', false)
+    .order('created_at',{ascending:false}).limit(1);
   const l = $('load'), r = $('reps'), line = $('lastline');
   if (!l) return;
   if (data && data.length) {
@@ -840,24 +960,29 @@ async function logSet(it, idx) {
   const reps = parseInt($('reps').value || '0', 10);
   if (!reps) return toast('Reps must be more than 0','err');
   const ex = BY_ID[it.exId];
-  const n = (S.sets[it.exId] || []).length + 1;
+  const warm = !!S.warm;
+  const n = workSets(S.sets[it.exId]).length + 1;
   const { error } = await sb.from('lift_set').insert({
     user_id: USER.id, workout_id: S.workoutId, exercise: ex.name, exercise_id: it.exId,
-    is_anchor: ex.is_anchor, load_lb: load, reps: reps, set_index: n
+    is_anchor: ex.is_anchor, load_lb: load, reps: reps, set_index: n, is_warmup: warm
   });
   if (error) return toast(error.message,'err');
 
-  const val = e1rm(it.exId, load, reps, LASTBW);
-  const prev = PRS[it.exId];
-  const isPR = prev == null || val > prev;
-  if (isPR) { PRS[it.exId] = val; buzz([70,50,70,50,120]); toast('Personal best — ' + ex.name, 'pr'); }
-  else { buzz(); toast('Set ' + n + ' logged'); }
+  if (warm) {
+    buzz(); toast('Warm-up logged');
+  } else {
+    const val = e1rm(it.exId, load, reps, LASTBW);
+    const prev = PRS[it.exId];
+    if (prev == null || val > prev) {
+      PRS[it.exId] = val; buzz([70,50,70,50,120]);
+      toast('Personal best — ' + ex.name, 'pr');
+    } else { buzz(); toast('Set ' + n + ' logged'); }
+  }
 
   await refreshSets();
-  const logged = (S.sets[it.exId] || []).length;
-  if (logged >= it.target && idx < S.items.length - 1) S.activeIdx = idx + 1;
-  paintSession();
-  startRest(it.rest, ex.name + ' · set ' + logged + ' of ' + it.target);
+  paintSession();   // deliberately does not jump — you move on when you decide to
+  startRest(warm ? 60 : it.rest,
+    ex.name + (warm ? ' · warm-up' : ' · set ' + n + ' of ' + it.target));
 }
 $('freeLogBtn').onclick = () => $('freeLog').classList.toggle('hide');
 $('freeAdd').onclick = async () => {
@@ -869,12 +994,29 @@ $('freeAdd').onclick = async () => {
   $('freeLog').classList.add('hide');
   paintSession();
 };
+$('sessNote').onblur = async () => {
+  S.sessionNote = $('sessNote').value.trim();
+  if (!S.workoutId) return;
+  await sb.from('workout').update({ notes: S.sessionNote || null }).eq('id', S.workoutId);
+};
+$('deleteSess').onclick = async () => {
+  if (!S.workoutId) return;
+  if (!confirm('Delete this whole session and every set in it? This cannot be undone.')) return;
+  await sb.from('workout').delete().eq('id', S.workoutId);   // sets cascade
+  buzz(); toast('Session deleted');
+  S.items = []; S.workoutId = null; S.activeIdx = 0; S.sets = {}; S.notes = {}; S.sessionNote = '';
+  stopRest(); paintSession(); await loadToday(); go('today');
+};
 $('finishBtn').onclick = async () => {
   if (!S.workoutId) return go('today');
-  const total = S.items.reduce((a,i) => a + (S.sets[i.exId]||[]).length, 0);
+  if ($('sessNote').value.trim() !== S.sessionNote) {
+    S.sessionNote = $('sessNote').value.trim();
+    await sb.from('workout').update({ notes: S.sessionNote || null }).eq('id', S.workoutId);
+  }
+  const total = S.items.reduce((a,i) => a + workSets(S.sets[i.exId]).length, 0);
   stopRest();
   toast(total ? 'Session done — ' + total + ' sets' : 'Session closed');
-  S.items = []; S.workoutId = null; S.activeIdx = 0;
+  S.items = []; S.workoutId = null; S.activeIdx = 0; S.sets = {}; S.notes = {};
   paintSession();
   await loadToday();
   go('today');
@@ -1185,14 +1327,110 @@ async function loadCalendar(){
     c.textContent=day;
     if(rec&&rec.sessions>0){ c.classList.add('has'); c.style.background=SEQ[Math.min(rec.sessions,3)-1]; }
     if(rec&&rec.activities>0){ const d=document.createElement('i'); d.className='dot'; c.appendChild(d); }
-    if(rec) c.onclick=()=>{
-      const bits=[];
-      if(rec.sessions) bits.push(rec.sessions+' session'+(rec.sessions>1?'s':'')+(rec.types?' ('+rec.types+')':'')+', '+rec.sets+' sets');
-      if(rec.activities) bits.push(rec.kinds+' '+rec.activity_minutes+' min');
-      $('calDetail').textContent=key+' — '+bits.join('  ·  '); buzz();
-    };
+    if(rec) c.onclick = () => openDay(key);
     grid.appendChild(c);
   }
+  $('calDetail').textContent = 'Tap any highlighted day to see what you did.';
+}
+
+$('dayClose').onclick = () => $('daySheet').classList.remove('on');
+$('daySheet').onclick = e => { if (e.target === $('daySheet')) $('daySheet').classList.remove('on'); };
+
+async function openDay(d) {
+  buzz();
+  $('dayTitle').textContent = new Date(d + 'T12:00:00')
+    .toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' });
+  $('dayMeta').textContent = '';
+  const body = $('dayBody'); body.innerHTML = '<div class="spin"></div>';
+  $('daySheet').classList.add('on');
+
+  const [sres, ares] = await Promise.all([
+    sb.from('session_detail').select('*').eq('performed_on', d),
+    sb.from('activity').select('*').eq('performed_on', d)
+  ]);
+  const sess = sres.data || [], acts = ares.data || [];
+  const ids = sess.map(s => s.id);
+  let sets = [], exNotes = [];
+  if (ids.length) {
+    const [r1, r2] = await Promise.all([
+      sb.from('lift_set').select('workout_id,exercise,exercise_id,load_lb,reps,is_warmup,created_at')
+        .in('workout_id', ids).order('created_at'),
+      sb.from('workout_exercise').select('*').in('workout_id', ids)
+    ]);
+    sets = r1.data || []; exNotes = r2.data || [];
+  }
+
+  const liftMin = sess.reduce((a,s) => a + (s.minutes||0), 0);
+  const actMin  = acts.reduce((a,x) => a + (x.minutes||0), 0);
+  const totWork = sess.reduce((a,s) => a + (s.work_sets||0), 0);
+  const parts = [];
+  if (sess.length) parts.push(totWork + ' working sets');
+  if (liftMin)     parts.push(liftMin + ' min lifting');
+  if (actMin)      parts.push(actMin + ' min cardio');
+  $('dayMeta').textContent = parts.join('  ·  ');
+
+  body.innerHTML = '';
+  sess.forEach(s => {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:17px;font-weight:700;margin:6px 0 2px';
+    h.textContent = s.session_type;
+    const sub = document.createElement('div'); sub.className = 'meta';
+    sub.textContent = [s.location, s.minutes ? s.minutes + ' min' : null,
+      s.work_sets + ' sets' + (s.warmup_sets ? ' (+' + s.warmup_sets + ' warm-up)' : '')]
+      .filter(Boolean).join('  ·  ');
+    body.appendChild(h); body.appendChild(sub);
+
+    const order = [], grouped = {};
+    sets.filter(x => x.workout_id === s.id).forEach(x => {
+      if (!grouped[x.exercise_id]) { grouped[x.exercise_id] = []; order.push(x.exercise_id); }
+      grouped[x.exercise_id].push(x);
+    });
+    order.forEach(exId => {
+      const rows = grouped[exId];
+      const blk = document.createElement('div'); blk.className = 'exblock';
+      const nm = document.createElement('b'); nm.textContent = rows[0].exercise;
+      blk.appendChild(nm);
+      const sl = document.createElement('div'); sl.className = 'setlist'; sl.style.marginTop = '0';
+      let n = 0;
+      rows.forEach(r => {
+        const p = document.createElement('div');
+        p.className = 'setpill' + (r.is_warmup ? ' warm' : '');
+        p.innerHTML = (r.is_warmup ? 'W' : ++n) + '. <b>' + (r.load_lb || 0) + '</b> × <b>' + r.reps + '</b>';
+        sl.appendChild(p);
+      });
+      blk.appendChild(sl);
+      const note = exNotes.filter(x => x.workout_id === s.id && x.exercise_id === exId)[0];
+      if (note && note.note) {
+        const nd = document.createElement('div'); nd.className = 'note';
+        nd.textContent = '“' + note.note + '”';
+        blk.appendChild(nd);
+      }
+      body.appendChild(blk);
+    });
+
+    if (s.notes) {
+      const sn = document.createElement('div');
+      sn.style.cssText = 'background:var(--card3);border-radius:10px;padding:12px;' +
+        'font-size:14px;color:var(--tx2);margin:4px 0 18px;line-height:1.5';
+      sn.textContent = s.notes;
+      body.appendChild(sn);
+    }
+  });
+
+  if (acts.length) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:17px;font-weight:700;margin:14px 0 8px';
+    h.textContent = 'Activity';
+    body.appendChild(h);
+    acts.forEach(a => {
+      const d2 = document.createElement('div'); d2.className = 'stat';
+      d2.innerHTML = '<span class="k">' + a.kind + (a.intensity ? ' <span class="muted">' +
+        a.intensity + '</span>' : '') + '</span><span class="v">' + a.minutes +
+        '<span class="muted" style="font-size:13px"> min</span></span>';
+      body.appendChild(d2);
+    });
+  }
+  if (!sess.length && !acts.length) body.innerHTML = '<p class="empty">Nothing logged that day.</p>';
 }
 $('calPrev').onclick=()=>{ calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1); $('calDetail').textContent=''; loadCalendar(); };
 $('calNext').onclick=()=>{ calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1); $('calDetail').textContent=''; loadCalendar(); };

@@ -25,6 +25,15 @@ squats, short after lateral raises. Buzzes when it's up. `+30s` and `Skip`.
 **Personal bests, detected live.** Beat your best estimated 1RM on a lift and you get a
 distinct haptic pattern and a banner mid-set.
 
+**Warm-up sets.** Flag a set as a warm-up and it's recorded for your own reference but
+excluded from volume counts, personal bests, 1RM estimates and the load pre-fill. Ramping
+up shouldn't inflate your numbers.
+
+**Notes at two levels.** A free-text note on the session, and one on any individual
+exercise. This is what makes the numbers interpretable months later — "did dips at
+bodyweight for 15" reads as a programming failure until the note says the gym had no
+loadable belt.
+
 **Volume by muscle group, counted properly.** Weekly fractional sets per muscle: a direct
 set counts 1.0, a meaningful secondary counts 0.5. A weighted dip gives chest 1.0, triceps
 1.0, front delts 0.5; a bench press gives chest 1.0 but triceps only 0.5.
@@ -38,8 +47,9 @@ last four weeks against the four before it.
 adjust calories, because the daily number is noise.
 
 **Calendar and charts.** Month-by-month calendar coloured by sessions per day with a marker
-for cardio days, plus charts for weight trend, sessions per week against target, estimated
-1RM per exercise, and weekly volume.
+for cardio days — tap any day for the full breakdown: every exercise, load and reps, warm-ups
+marked, both levels of notes, session duration and any cardio. Plus charts for weight trend,
+sessions per week against target, estimated 1RM per exercise, and weekly volume.
 
 **Goals** for a lift target, a bodyweight target, or sessions per week. They check
 themselves against your logged data and stamp the date they're met.
