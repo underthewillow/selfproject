@@ -252,6 +252,9 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
 .calday.pad{opacity:.2}
 .calday .dot{position:absolute;bottom:3px;right:3px;width:6px;height:6px;border-radius:50%;
   background:var(--aqua);box-shadow:0 0 0 2px var(--card)}
+.calday .fdot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;
+  background:var(--accent)}
+.calday.ate{color:var(--tx2)}
 .callegend{display:flex;align-items:center;gap:13px;margin-top:16px;font-size:12px;
   color:var(--dim);flex-wrap:wrap}
 .swatch{width:13px;height:13px;border-radius:4px;display:inline-block;vertical-align:-2px;
@@ -457,6 +460,14 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
       </div>
       <div class="card"><h2>Totals</h2><div id="sSummary"></div></div>
       <div class="card">
+        <h2>Nutrition &mdash; last 7 days</h2>
+        <div id="sNutrition"><p class="empty">Log a day of food and this fills in.</p></div>
+      </div>
+      <div class="card">
+        <h2>What maintenance actually is</h2>
+        <div id="sMaint"></div>
+      </div>
+      <div class="card">
         <h2>Goals</h2>
         <div id="goalList"><p class="empty">No goals set.</p></div>
         <button id="goalToggle" class="ghost sm" style="margin-top:14px">Add a goal</button>
@@ -507,11 +518,18 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
           <span><i class="swatch" style="background:#3987e5"></i>2</span>
           <span><i class="swatch" style="background:#86b6ef"></i>3+</span>
           <span><i class="swatch" style="background:#199e70;border-radius:50%"></i>cardio</span>
+          <span><i class="swatch" style="background:#f59e0b;border-radius:50%"></i>food logged</span>
         </div>
         <div id="calDetail" class="hint" style="min-height:20px"></div>
       </div>
       <div class="card"><h2>Weight &mdash; 7-day average (lb)</h2><div class="chart" id="chartWeight"></div></div>
       <div class="card"><h2>Waist (in)</h2><div class="chart" id="chartWaist"></div></div>
+      <div class="card">
+        <h2>Nutrition &mdash; 7-day average</h2>
+        <div class="chips" id="progNutChips" style="margin-bottom:8px"></div>
+        <div class="chart" id="chartNut"></div>
+        <p class="hint" id="nutChartNote"></p>
+      </div>
       <div class="card"><h2>Lifting sessions per week</h2><div class="chart" id="chartSessions"></div></div>
       <div class="card">
         <h2>Estimated 1RM (lb)</h2>
@@ -1374,6 +1392,8 @@ async function loadStats() {
     });
   } else vbox.innerHTML = '<p class="empty">Nothing logged this week.</p>';
 
+  await paintNutritionStats(wt || []);
+
   const { data: prog } = await sb.from('exercise_progress').select('*');
   const obox = $('sOverload'); obox.innerHTML = '';
   if (prog && prog.length) {
@@ -1422,15 +1442,26 @@ function xLabels(svg,rows,xOf,H){
     t.textContent=rows[i].label; svg.appendChild(t);
   });
 }
-function lineChart(host,rows,unit){
+// `target` is optional: pass it and the scale widens to include it and a dashed
+// reference line is drawn, so the line is read against the number that matters
+// rather than against its own range.
+function lineChart(host,rows,unit,target){
   host.innerHTML='';
   if(!rows||rows.length<2) return emptyChart(host,'Needs a few more days of data.');
   const W=340,H=190,ML=42,MR=12,MT=14,MB=26,iw=W-ML-MR,ih=H-MT-MB;
-  const vals=rows.map(r=>r.value), ticks=niceTicks(Math.min.apply(null,vals),Math.max.apply(null,vals),4);
+  const vals=rows.map(r=>r.value);
+  if(target!=null) vals.push(target);
+  const ticks=niceTicks(Math.min.apply(null,vals),Math.max.apply(null,vals),4);
   const lo=ticks[0],hi=ticks[ticks.length-1];
   const X=i=>ML+iw*i/(rows.length-1), Y=v=>MT+ih-ih*(v-lo)/(hi-lo);
   const svg=el('svg',{viewBox:'0 0 '+W+' '+H,role:'img'});
   axisY(svg,ML,iw,ticks,Y);
+  if(target!=null){
+    svg.appendChild(el('line',{x1:ML,x2:ML+iw,y1:Y(target),y2:Y(target),stroke:VIZ.s2,
+      'stroke-width':2,'stroke-dasharray':'4 4'}));
+    const tl=el('text',{x:ML+iw,y:Y(target)-6,fill:VIZ.s2,'font-size':10,'text-anchor':'end'});
+    tl.textContent='target '+target; svg.appendChild(tl);
+  }
   let d=''; rows.forEach((r,i)=>{ d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(r.value).toFixed(1)+' '; });
   svg.appendChild(el('path',{d:d,fill:'none',stroke:VIZ.s1,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
   if(rows.length<=24) rows.forEach((r,i)=>svg.appendChild(el('circle',{cx:X(i),cy:Y(r.value),r:4,fill:VIZ.s1,stroke:VIZ.surf,'stroke-width':2})));
@@ -1494,9 +1525,14 @@ let calMonth=null, progEx=null, progMuscle='All';
 async function loadCalendar(){
   if(!calMonth){ const n=new Date(); calMonth=new Date(n.getFullYear(),n.getMonth(),1); }
   const first=calMonth, last=new Date(first.getFullYear(),first.getMonth()+1,0);
-  const { data } = await sb.from('daily_log').select('*')
-    .gte('performed_on',isoOf(first)).lte('performed_on',isoOf(last));
+  const [{ data }, { data: fd }] = await Promise.all([
+    sb.from('daily_log').select('*')
+      .gte('performed_on',isoOf(first)).lte('performed_on',isoOf(last)),
+    sb.from('daily_nutrition').select('logged_on,kcal')
+      .gte('logged_on',isoOf(first)).lte('logged_on',isoOf(last))
+  ]);
   const byDay={}; (data||[]).forEach(r=>{ byDay[r.performed_on]=r; });
+  const ate={}; (fd||[]).forEach(r=>{ ate[r.logged_on]=r; });
   $('calLabel').textContent=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
   const dow=$('calDow'); dow.innerHTML='';
   ['M','T','W','T','F','S','S'].forEach(l=>{ const c=document.createElement('div'); c.className='caldow'; c.textContent=l; dow.appendChild(c); });
@@ -1509,7 +1545,11 @@ async function loadCalendar(){
     c.textContent=day;
     if(rec&&rec.sessions>0){ c.classList.add('has'); c.style.background=SEQ[Math.min(rec.sessions,3)-1]; }
     if(rec&&rec.activities>0){ const d=document.createElement('i'); d.className='dot'; c.appendChild(d); }
-    if(rec) c.onclick = () => openDay(key);
+    if(ate[key]){
+      if(!rec) c.classList.add('ate');
+      const f=document.createElement('i'); f.className='fdot'; c.appendChild(f);
+    }
+    if(rec||ate[key]) c.onclick = () => openDay(key);
     grid.appendChild(c);
   }
   $('calDetail').textContent = 'Tap any highlighted day to see what you did.';
@@ -1526,11 +1566,12 @@ async function openDay(d) {
   const body = $('dayBody'); body.innerHTML = '<div class="spin"></div>';
   $('daySheet').classList.add('on');
 
-  const [sres, ares] = await Promise.all([
+  const [sres, ares, nres] = await Promise.all([
     sb.from('session_detail').select('*').eq('performed_on', d),
-    sb.from('activity').select('*').eq('performed_on', d)
+    sb.from('activity').select('*').eq('performed_on', d),
+    sb.from('daily_nutrition').select('*').eq('logged_on', d)
   ]);
-  const sess = sres.data || [], acts = ares.data || [];
+  const sess = sres.data || [], acts = ares.data || [], nut = (nres.data || [])[0];
   const ids = sess.map(s => s.id);
   let sets = [], exNotes = [];
   if (ids.length) {
@@ -1612,7 +1653,30 @@ async function openDay(d) {
       body.appendChild(d2);
     });
   }
-  if (!sess.length && !acts.length) body.innerHTML = '<p class="empty">Nothing logged that day.</p>';
+  // What he ate that day, next to what he did. This is the pairing that makes an
+  // old entry interpretable — a light session on top of a 1,900 kcal day reads
+  // very differently from a light session on a full one.
+  if (nut) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:17px;font-weight:700;margin:18px 0 8px';
+    h.textContent = 'Food';
+    body.appendChild(h);
+    statRow(body, 'Calories', kcalFmt(nut.kcal),
+      Number(nut.kcal) < NUT.kcal * 0.85 ? 'neg' : '');
+    statRow(body, 'Usable protein', gm(nut.usable_protein_g) + ' g',
+      Number(nut.usable_protein_g) >= NUT.protein ? 'pos' : '');
+    if (Number(nut.uncounted_protein_g) > 1)
+      statRow(body, 'Uncounted protein', gm(nut.uncounted_protein_g) + ' g', 'muted');
+    statRow(body, 'Carbs', gm(nut.carbs_g) + ' g');
+    statRow(body, 'Fat', gm(nut.fat_g) + ' g');
+    statRow(body, 'Saturated fat', gm(nut.sat_fat_g) + ' g',
+      Number(nut.sat_fat_g) > NUT.sat ? 'neg' : 'pos');
+    statRow(body, 'Fibre', gm(nut.fibre_g) + ' g',
+      Number(nut.fibre_g) >= NUT.fibre ? 'pos' : '');
+  }
+
+  if (!sess.length && !acts.length && !nut)
+    body.innerHTML = '<p class="empty">Nothing logged that day.</p>';
 }
 $('calPrev').onclick=()=>{ calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1); $('calDetail').textContent=''; loadCalendar(); };
 $('calNext').onclick=()=>{ calMonth=new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1); $('calDetail').textContent=''; loadCalendar(); };
@@ -1626,6 +1690,22 @@ async function loadProgress(){
     .not('waist_in','is',null).order('logged_on');
   lineChart($('chartWaist'), (wa||[])
     .map(r=>({label:r.logged_on.slice(5),value:Number(r.waist_in)})),'"');
+
+  const { data: nt } = await sb.from('nutrition_trend').select('*')
+    .order('logged_on', { ascending:false }).limit(60);
+  const ntrend = (nt || []).slice().reverse();
+  const ser = NUT_SERIES.find(s => s.key === progNut) || NUT_SERIES[0];
+  renderChips($('progNutChips'), NUT_SERIES.map(s => s.key), progNut,
+    v => { progNut = v; loadProgress(); });
+  const nrows = ntrend.filter(r => r[ser.col] !== null)
+    .map(r => ({ label:r.logged_on.slice(5), value:Number(r[ser.col]) }));
+  if (nrows.length < 2) {
+    emptyChart($('chartNut'), 'A few days of food logging and this fills in.');
+    $('nutChartNote').textContent = '';
+  } else {
+    lineChart($('chartNut'), nrows.slice(-30), ser.unit, ser.target());
+    $('nutChartNote').innerHTML = ser.note;
+  }
 
   const { data: wk } = await sb.from('weekly_sessions').select('*').limit(12);
   barChart($('chartSessions'), (wk||[]).slice().reverse()
@@ -2004,6 +2084,8 @@ async function loadFood() {
   barChart($('chartKcal'), t.map(r => ({ label:r.logged_on.slice(5), value:Number(r.kcal) })),
            ' kcal', NUT.kcal);
   const last = t[t.length - 1], box = $('fAvgs'); box.innerHTML = '';
+  const cover = Number(last.days_logged_7 || 0);
+  statRow(box, 'Days logged', cover + ' of 7', cover >= 5 ? 'pos' : '');
   statRow(box, '7-day calories',       kcalFmt(last.kcal_avg7),
           Number(last.kcal_avg7) < NUT.kcal * 0.9 ? 'neg' : '');
   statRow(box, '7-day usable protein', gm(last.protein_avg7) + ' g',
@@ -2014,11 +2096,186 @@ async function loadFood() {
           Number(last.fibre_avg7) >= NUT.fibre ? 'pos' : '');
   const note = document.createElement('p');
   note.className = 'hint';
-  note.innerHTML = 'The weekly average is the number to act on. A single day tells you ' +
-    'nothing you can use &mdash; the scale settles whether ' + NUT.kcal.toLocaleString() +
-    ' was the right estimate in the first place.';
+  note.innerHTML = (cover < 4
+      ? 'Averages over ' + cover + ' logged day' + (cover === 1 ? '' : 's') +
+        ' in the last week. Not enough to act on yet. '
+      : 'The weekly average is the number to act on, not any single day. ') +
+    'Whether ' + NUT.kcal.toLocaleString() + ' was the right estimate at all gets settled ' +
+    'on the Stats tab, where the scale is brought in.';
   box.appendChild(note);
 }
+
+/* ============================================================================
+   NUTRITION ON STATS
+
+   Two things live here that the Food tab deliberately doesn't do. The Food tab
+   answers "how is today going". This answers "is the plan right" — which needs
+   a week or more of data and, for the maintenance figure, the scale as well.
+   ========================================================================== */
+
+// Energy balance, run backwards. Over a window, maintenance is mean intake
+// minus whatever the weight change accounts for, at ~3,500 kcal per pound.
+// Self-reported intake carries 20–30% error, so this is a correction to a
+// formula estimate, not a precise number — but it beats the formula, because
+// it's measured on the person rather than assumed from a population.
+function maintenanceEstimate(nut, wt) {
+  const w = wt.filter(r => r.avg_7d !== null)
+              .slice().sort((a,b) => a.logged_on.localeCompare(b.logged_on));
+  if (!nut.length || w.length < 2) return { need: 'weight' };
+
+  const start = nut[0].logged_on   > w[0].logged_on   ? nut[0].logged_on   : w[0].logged_on;
+  const end   = nut[nut.length-1].logged_on < w[w.length-1].logged_on
+              ? nut[nut.length-1].logged_on : w[w.length-1].logged_on;
+  if (start >= end) return { need: 'overlap' };
+
+  const days = Math.round((new Date(end + 'T12:00:00') - new Date(start + 'T12:00:00')) / 864e5) + 1;
+  if (!isFinite(days) || days < 1) return { need: 'overlap' };
+  const inWin = nut.filter(r => r.logged_on >= start && r.logged_on <= end);
+  if (days < 14) return { need: 'days', days, more: 14 - days };
+  // A mean over 9 logged days isn't the mean over a 21-day window. Say so
+  // rather than quietly reporting a number built from the days he felt like
+  // logging — which skew high, because people log the days they eat well.
+  if (inWin.length / days < 0.75) return { need: 'coverage', days, logged: inWin.length };
+
+  const wStart = Number(w.filter(r => r.logged_on >= start)[0].avg_7d);
+  const wEnd   = Number(w.filter(r => r.logged_on <= end).slice(-1)[0].avg_7d);
+  const mean   = inWin.reduce((a,r) => a + Number(r.kcal), 0) / inWin.length;
+  const delta  = wEnd - wStart;
+  return {
+    days, logged: inWin.length, mean, delta, wStart, wEnd,
+    maint: mean - (delta * 3500 / days)
+  };
+}
+
+async function paintNutritionStats(wt) {
+  const { data: nt } = await sb.from('nutrition_trend').select('*')
+    .order('logged_on', { ascending: false }).limit(60);
+  const trend = (nt || []).slice().reverse();
+
+  /* ---- last 7 days ---- */
+  const box = $('sNutrition'); box.innerHTML = '';
+  const since = isoOf(new Date(Date.now() - 6 * 864e5));
+  const week  = trend.filter(r => r.logged_on >= since);
+
+  if (!week.length) {
+    box.innerHTML = '<p class="empty">Log a day of food and this fills in.</p>';
+  } else {
+    const mean = k => week.reduce((a,r) => a + Number(r[k] || 0), 0) / week.length;
+    const kc = mean('kcal'), pr = mean('usable_protein_g'),
+          sa = mean('sat_fat_g'), fb = mean('fibre_g');
+
+    statRow(box, 'Days logged', week.length + ' of 7', week.length >= 5 ? 'pos' : '');
+    statRow(box, 'Calories', kcalFmt(kc),
+      kc < NUT.kcal * 0.88 ? 'neg' : (kc <= NUT.kcal * 1.07 ? 'pos' : ''));
+    statRow(box, 'Usable protein', gm(pr) + ' g', pr >= NUT.protein ? 'pos' : 'neg');
+
+    // Protein reads better per pound than in absolute grams — it's the form the
+    // evidence is stated in, and it stays correct if his weight moves.
+    const latestW = wt.filter(r => r.weight_lb != null)[0];
+    if (latestW) statRow(box, 'Protein per lb',
+      (pr / Number(latestW.weight_lb)).toFixed(2) + ' g/lb',
+      pr / Number(latestW.weight_lb) >= 0.9 ? 'pos' : '');
+
+    statRow(box, 'Saturated fat', gm(sa) + ' g', sa > NUT.sat ? 'neg' : 'pos');
+    statRow(box, 'Fibre', gm(fb) + ' g', fb >= NUT.fibre ? 'pos' : '');
+
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.innerHTML = week.length < 4
+      ? 'Averages over ' + week.length + ' day' + (week.length > 1 ? 's' : '') +
+        ' aren\'t worth acting on yet. Four or five gives you something real.'
+      : 'Averages over the days you logged. The week is the unit &mdash; a single ' +
+        'day tells you nothing you can use.';
+    box.appendChild(note);
+  }
+
+  /* ---- maintenance ---- */
+  const mbox = $('sMaint'); mbox.innerHTML = '';
+  const p = document.createElement('div');
+  p.style.fontSize = '14px'; p.style.lineHeight = '1.55'; p.style.color = 'var(--tx2)';
+  const est = maintenanceEstimate(trend, wt);
+
+  if (est.need === 'weight' || est.need === 'overlap') {
+    p.innerHTML = 'This works out your real maintenance calories by running energy ' +
+      'balance backwards &mdash; what you ate, against what the scale did. It needs ' +
+      'food and weight logged over the same fortnight.';
+  } else if (est.need === 'days') {
+    p.innerHTML = '<b>' + est.more + ' more day' + (est.more > 1 ? 's' : '') + '</b> and this ' +
+      'can tell you what your maintenance calories actually are, from what you ate ' +
+      'against what the scale did &mdash; rather than from a formula.';
+  } else if (est.need === 'coverage') {
+    p.innerHTML = 'Food is logged on ' + est.logged + ' of the last ' + est.days + ' days. ' +
+      'Below about three quarters, the average is built from the days you felt like ' +
+      'logging &mdash; which skew high &mdash; so the maintenance figure would be wrong ' +
+      'in a direction that flatters you. A few more consecutive days fixes it.';
+  } else {
+    const maint = Math.round(est.maint / 25) * 25;
+    const gap   = maint - NUT.kcal;
+    const dir   = est.delta > 0.15 ? 'gained' : est.delta < -0.15 ? 'lost' : 'held';
+
+    const head = document.createElement('div');
+    head.innerHTML = '<div class="big">' + maint.toLocaleString() + '</div>' +
+      '<div class="sub">kcal/day, measured &mdash; against a ' + NUT.kcal.toLocaleString() +
+      ' estimate</div>';
+    mbox.appendChild(head);
+
+    const detail = document.createElement('div');
+    detail.style.marginTop = '16px';
+    statRow(detail, 'Window', est.days + ' days, ' + est.logged + ' logged');
+    statRow(detail, 'Average intake', kcalFmt(est.mean));
+    statRow(detail, 'Weight over the window',
+      (est.delta >= 0 ? '+' : '') + est.delta.toFixed(1) + ' lb',
+      Math.abs(est.delta) <= 1 ? 'pos' : '');
+    mbox.appendChild(detail);
+
+    if (Math.abs(gap) < 175) {
+      p.innerHTML = 'The ' + NUT.kcal.toLocaleString() + ' estimate is holding up. You ' +
+        dir + ' weight on an average of ' + kcalFmt(est.mean) + ', which is what a correct ' +
+        'target looks like. Nothing to change.';
+    } else if (gap < 0) {
+      p.innerHTML = '<b>Your real maintenance looks lower than the estimate</b> &mdash; ' +
+        'about ' + maint.toLocaleString() + ' rather than ' + NUT.kcal.toLocaleString() +
+        '. You averaged ' + kcalFmt(est.mean) + ' and ' + dir + ' weight, which is the ' +
+        'definition of maintenance. If that holds another fortnight, the honest move is ' +
+        'to lower the target in <code>NUT</code> rather than force-feed to hit a number ' +
+        'a formula made up. Hitting ' + NUT.kcal.toLocaleString() + ' would be a slow gain, ' +
+        'not a recomp.';
+    } else {
+      p.innerHTML = '<b>Your real maintenance looks higher than the estimate</b> &mdash; ' +
+        'about ' + maint.toLocaleString() + '. You averaged ' + kcalFmt(est.mean) + ' and ' +
+        dir + ' weight, so at the current target you\'re in a deficit rather than at ' +
+        'maintenance. That will cost you lifts before it costs you fat.';
+    }
+    const caveat = document.createElement('p');
+    caveat.className = 'hint';
+    caveat.innerHTML = 'Self-reported intake carries 20&ndash;30% error even when you try ' +
+      'hard, so treat this as a correction to the formula, not a precise number. It gets ' +
+      'better the longer you log, because consistent under-reporting cancels out of the ' +
+      '<em>change</em> even when it doesn\'t cancel out of the level.';
+    p.style.marginTop = '16px';
+    mbox.appendChild(p);
+    mbox.appendChild(caveat);
+    return;
+  }
+  mbox.appendChild(p);
+}
+
+/* ---------- nutrition chart on Progress ---------- */
+const NUT_SERIES = [
+  { key:'Calories', col:'kcal_avg7', unit:' kcal', target:() => NUT.kcal,
+    note:'The 7-day average of what you ate. Read it against the scale, not on its own — ' +
+         'if this sits low and your weight holds, the target is wrong, not your appetite.' },
+  { key:'Protein',  col:'protein_avg7', unit:' g', target:() => NUT.protein,
+    note:'Usable protein — collagen is excluded automatically. This is the one number ' +
+         'the scale cannot tell you, which is the whole argument for logging food at all.' },
+  { key:'Sat fat',  col:'sat_fat_avg7', unit:' g', target:() => NUT.sat,
+    note:'The line that matters for LDL, at 6% of calories. Judge it on this chart, ' +
+         'never on a single day — one beef dinner is not a trend.' },
+  { key:'Fibre',    col:'fibre_avg7', unit:' g', target:() => NUT.fibre,
+    note:'Soluble fibre is one of the few dietary levers with a real LDL effect. ' +
+         'Psyllium powder, oats and avocado are the cheapest ways to move this line.' }
+];
+let progNut = 'Calories';
 
 /* ---------- nav ---------- */
 const VIEWS = ['today','lift','cardio','food','body','stats','prog'];

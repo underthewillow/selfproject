@@ -695,9 +695,17 @@ select
   round(avg(kcal) over w)                as kcal_avg7,
   round(avg(usable_protein_g) over w, 1) as protein_avg7,
   round(avg(sat_fat_g) over w, 1)        as sat_fat_avg7,
-  round(avg(fibre_g) over w, 1)          as fibre_avg7
+  round(avg(fibre_g) over w, 1)          as fibre_avg7,
+  count(*) over w                        as days_logged_7
 from public.daily_nutrition
-window w as (partition by user_id order by logged_on rows between 6 preceding and current row);
+-- RANGE over an interval, not ROWS: daily_nutrition only has rows for days with
+-- food logged, so a ROWS window would average "the last 7 logged days" — which
+-- can span three calendar weeks — while calling itself a 7-day average.
+window w as (
+  partition by user_id
+  order by logged_on
+  range between interval '6 days' preceding and current row
+);
 
 
 -- =============================================================================

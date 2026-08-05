@@ -46,10 +46,12 @@ last four weeks against the four before it.
 **Bodyweight and waist**, shown as a 7-day rolling average with a verdict on whether to
 adjust calories, because the daily number is noise.
 
-**Calendar and charts.** Month-by-month calendar coloured by sessions per day with a marker
-for cardio days — tap any day for the full breakdown: every exercise, load and reps, warm-ups
-marked, both levels of notes, session duration and any cardio. Plus charts for weight trend,
-sessions per week against target, estimated 1RM per exercise, and weekly volume.
+**Calendar and charts.** Month-by-month calendar coloured by sessions per day, with markers
+for cardio days and days you logged food — tap any day for the full breakdown: every
+exercise, load and reps, warm-ups marked, both levels of notes, session duration, any
+cardio, and the day's macros. Plus charts for weight trend, waist, sessions per week
+against target, estimated 1RM per exercise, weekly volume, and a nutrition trend you can
+switch between calories, protein, saturated fat and fibre.
 
 **Goals** for a lift target, a bodyweight target, or sessions per week. They check
 themselves against your logged data and stamp the date they're met.
@@ -71,6 +73,14 @@ close it without moving saturated fat, ranked by how close one serving gets you.
 Under-eating is the usual failure mode on a high-protein diet, and it's invisible without
 a number.
 
+**Your real maintenance calories, measured.** Once there's a fortnight of food and weight
+logged together, Stats runs energy balance backwards — average intake against what the
+scale actually did — and tells you what maintenance is for *you*, rather than what a
+formula guessed. If your logged intake sits well under target while your weight holds, the
+target was wrong; the app says so instead of telling you to eat more. It refuses to compute
+when logging coverage drops below three quarters of the days, because an average built from
+the days you felt like logging skews high.
+
 **Cardio and everything else** — swimming, cycling, walks, sprints, hikes.
 
 ---
@@ -78,7 +88,7 @@ a number.
 ## How it's built
 
 - `index.html` — the entire app. Vanilla JavaScript, no framework, no bundler, no npm.
-  Charts are hand-written inline SVG. About 60 KB.
+  Charts are hand-written inline SVG. About 110 KB.
 - `schema.sql` — every table, view, index and security policy, plus the seeded exercise
   catalog and routines.
 - Supabase provides Postgres and auth. The only runtime dependency is `supabase-js`, loaded
@@ -95,8 +105,9 @@ a number.
 pick the one nearest you.
 
 **3. Run the schema.** Open the SQL Editor in your new project, paste the entire contents
-of `schema.sql`, and run it. It creates 9 tables, 10 views, row-level security on
-everything, and seeds 38 exercises with their muscle mappings plus four routines.
+of `schema.sql`, and run it. It creates 12 tables, 16 views, row-level security on
+everything, and seeds 38 exercises with their muscle mappings, four routines, and a
+starter food catalog.
 
 **4. Turn off email confirmation.** Authentication → Sign In / Providers → Email → switch
 **Confirm email** off. Without this, your first sign-up waits on a confirmation email that
@@ -108,10 +119,12 @@ there's a config section:
 ```js
 const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_...';
-const WEEK_TARGET  = 4;
+const WEEK_TARGET  = 4;                // sessions/week the ring counts toward
+const MODE         = 'recomp';         // 'bulk' | 'recomp' | 'cut'
+const NUT = { kcal: 2900, protein: 185, fat: 88, sat: 19, fibre: 30 };
 ```
 
-Both values are in Supabase under Project Settings → API. Use the **publishable** key, not
+The URL and key are in Supabase under Project Settings → API. Use the **publishable** key, not
 the secret one. It's safe in public source — row-level security is what protects the data,
 and every table has it on.
 
