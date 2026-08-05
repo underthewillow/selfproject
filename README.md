@@ -88,7 +88,7 @@ the days you felt like logging skews high.
 ## How it's built
 
 - `index.html` — the entire app. Vanilla JavaScript, no framework, no bundler, no npm.
-  Charts are hand-written inline SVG. About 125 KB.
+  Charts are hand-written inline SVG. About 132 KB.
 - `schema.sql` — every table, view, index and security policy, plus the seeded exercise
   catalog and routines.
 - Supabase provides Postgres and auth. The only runtime dependency is `supabase-js`, loaded
@@ -221,7 +221,7 @@ the macros on the log entry itself.
 - Colours are CSS custom properties at the top of the `<style>` block, along with the
   motion tokens (`--dur-*`, `--ease-*`). Three rules hold the visual system together and are
   worth keeping if you fork it: **one hero number per screen** (only one element gets `.big`),
-  **colour means one thing each** (green cleared, red over, amber attention, blue
+  **colour means one thing each** (green cleared, red over, sage the action you can take, blue
   non-evaluative chart data — nothing decorative), and **surfaces separate by lightness, not
   borders** (a vertical gradient plus a 1px lit top edge, since shadows are invisible on a
   dark backdrop). The floating tab bar is the only `backdrop-filter` layer in the app; adding

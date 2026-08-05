@@ -26,15 +26,21 @@
   --tx:#f2f4f8; --tx2:#8891a1; --dim:#5d6675;
 
   /* ---- colour is data ---------------------------------------------------
-     One meaning each, never reused decoratively. If everything is amber,
-     amber stops meaning anything. */
-  --accent:#f5b544;   /* attention · action · now */
-  --accent2:#ffca62;
-  --ink:#1c1400;
-  --ok:#3ddc97;       /* cleared · on target */
-  --bad:#ff6b6b;      /* over · backslid */
-  --blue:#6ea8f0;     /* non-evaluative data — charts only */
-  --aqua:#3ddc97;
+     One meaning each, never reused decoratively. The accent is deliberately
+     desaturated: it marks the thing to press, it doesn't compete with data.
+     Sage sits near the "cleared" green, so that green is pushed a good 30°
+     warmer and much more saturated to keep the two unmistakable. */
+  --accent:#4f8a80;      /* attention · action · now */
+  --accent2:#8ecabf;     /* the accent as a legible foreground */
+  --accTint:rgba(90,155,144,.16);
+  --accEdge:rgba(110,180,168,.28);
+  --accEdge2:rgba(110,180,168,.46);
+  --accGlow:rgba(90,155,144,.16);
+  --ink:#eefaf7;
+  --ok:#5fdd83;          /* cleared · on target */
+  --bad:#ff6b6b;         /* over · backslid */
+  --blue:#6ea8f0;        /* non-evaluative data — charts only */
+  --aqua:#5fdd83;
 
   --r:20px; --r2:14px;
 
@@ -71,7 +77,7 @@ input,select,textarea{width:100%;background:rgba(255,255,255,.04);border:none;
   box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--r2);
   color:var(--tx);padding:14px;font-size:17px;font-family:inherit;outline:none;min-height:52px;
   transition:box-shadow var(--dur-fast) var(--ease)}
-input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 1.5px var(--accent)}
+input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 1.5px var(--accEdge2)}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),
   linear-gradient(135deg,var(--dim) 50%,transparent 50%);
   background-position:calc(100% - 20px) 24px,calc(100% - 14px) 24px;
@@ -80,10 +86,13 @@ select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,va
 .field{margin-bottom:16px}.field:last-child{margin-bottom:0}
 
 /* ---- buttons ----------------------------------------------------------- */
-button{font-family:inherit;font-size:17px;border:none;border-radius:var(--r2);padding:16px;
-  background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--ink);
-  font-weight:700;width:100%;cursor:pointer;min-height:54px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 4px 14px rgba(245,181,68,.16);
+/* The primary action is a tint of the accent with the label in the accent —
+   one effect, not three. A saturated fill plus a gradient plus an outer glow
+   were all doing the same job, which is what read as loud. */
+button{font-family:inherit;font-size:16.5px;border:none;border-radius:var(--r2);padding:15px;
+  background:var(--accTint);color:var(--accent2);
+  font-weight:650;width:100%;cursor:pointer;min-height:52px;letter-spacing:-.005em;
+  box-shadow:inset 0 0 0 1px var(--accEdge);
   transition:transform var(--dur-fast) var(--spring),opacity var(--dur-fast) var(--ease),
              box-shadow var(--dur-fast) var(--ease)}
 button:active{transform:scale(.96);opacity:.9}
@@ -91,6 +100,7 @@ button.ghost{background:rgba(255,255,255,.055);color:var(--tx);font-weight:600;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.06),inset 0 0 0 1px var(--line)}
 button.quiet{background:transparent;color:var(--tx2);font-weight:500;
   box-shadow:inset 0 0 0 1px var(--line)}
+.stepper button{background:rgba(255,255,255,.055);color:var(--tx)}
 button.sm{padding:11px 12px;font-size:15px;min-height:44px}
 .row button.sm{font-size:14px;white-space:nowrap;padding:11px 8px}
 button.xs{padding:8px 12px;font-size:14px;min-height:44px;border-radius:12px}
@@ -103,8 +113,8 @@ button.xs{padding:8px 12px;font-size:14px;min-height:44px;border-radius:12px}
   transition:transform var(--dur-fast) var(--spring),background var(--dur-fast) var(--ease),
              color var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease)}
 .chip:active{transform:scale(.94)}
-.chip.on{background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--ink);
-  font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 3px 12px rgba(245,181,68,.18)}
+.chip.on{background:var(--accTint);color:var(--accent2);
+  font-weight:650;box-shadow:inset 0 0 0 1px var(--accEdge)}
 
 .stepper{display:flex;align-items:stretch;gap:8px}
 .stepper input{text-align:center;font-size:28px;font-weight:750;padding:10px 2px;
@@ -134,7 +144,7 @@ nav button:active{transform:none;opacity:.6}
 nav button svg{display:block;margin:0 auto 4px;stroke:currentColor;fill:none;
   stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 nav button.on{color:var(--tx)}
-nav button .navdot{width:4px;height:4px;border-radius:50%;background:var(--accent);
+nav button .navdot{width:4px;height:4px;border-radius:50%;background:var(--accent2);
   margin:4px auto 0;opacity:0;transform:scale(.4);
   transition:opacity var(--dur) var(--ease-out),transform var(--dur) var(--spring)}
 nav button.on .navdot{opacity:1;transform:scale(1)}
@@ -180,6 +190,45 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
 .ring .t{font-size:13.5px;color:var(--tx2);margin-top:6px}
 #ringArc{transition:stroke-dashoffset 900ms var(--ease-out),stroke var(--dur) var(--ease)}
 
+/* Today — the session card's head */
+.uphead{display:flex;align-items:flex-start;gap:14px}
+.upname{flex:1;min-width:0}
+.upname .nm{font-size:38px;font-weight:800;letter-spacing:-.04em;line-height:1.02;
+  background:linear-gradient(175deg,#ffffff 18%,#c3cad6 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.upname .meta{font-size:12.5px;color:var(--tx2);margin-top:7px}
+.ring{flex:none;position:relative;width:62px;height:62px}
+.ring svg{display:block;overflow:visible}
+.ring .rn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ring .rn i{font-style:normal;font-size:10px;color:var(--dim);font-weight:600}
+.weekline{font-size:12.5px;color:var(--tx2);margin-top:15px;line-height:1.55}
+.weekline b{color:var(--tx);font-weight:650}
+
+/* Today — the three tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.tile{background:rgba(255,255,255,.04);border-radius:15px;padding:13px 8px;text-align:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 0 1px var(--line);cursor:pointer;
+  min-height:92px;transition:transform var(--dur-fast) var(--spring)}
+.tile:active{transform:scale(.96)}
+.tile svg{display:block;margin:0 auto 8px;stroke:var(--dim);fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;transition:stroke var(--dur) var(--ease)}
+.tile.done svg{stroke:var(--accent2)}
+.tile .v{font-size:18px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tile .v.none{color:var(--dim);font-size:15px;font-weight:600}
+.tile .k{font-size:10px;color:var(--dim);margin-top:3px;letter-spacing:.05em}
+
+/* Today — recent bests */
+.best{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.best:first-child{padding-top:0}
+.best:last-child{border-bottom:none;padding-bottom:0}
+.best .n{flex:1;min-width:0;font-size:14.5px;font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.best .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;flex:none}
+.best .dl{font-size:11px;font-weight:700;padding:3px 7px;border-radius:7px;flex:none;
+  background:rgba(95,221,131,.13);color:var(--ok)}
+.best .dl.dn{background:rgba(255,107,107,.13);color:var(--bad)}
+
 /* week strip */
 .week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:18px}
 .week div{text-align:center}
@@ -187,10 +236,11 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
 .week .b{height:34px;border-radius:10px;display:flex;
   box-shadow:inset 0 0 0 1px var(--line);
   align-items:center;justify-content:center;font-size:12px;font-weight:650;color:var(--dim)}
-.week .b.on{background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--ink);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.week .b.on{background:var(--accTint);color:var(--accent2);
+  box-shadow:inset 0 0 0 1px var(--accEdge)}
 .week .b.act{box-shadow:inset 0 0 0 1px var(--aqua);color:var(--aqua)}
-.week .b.today{outline:2px solid var(--line2);outline-offset:1px}
+.week .b.today{box-shadow:inset 0 0 0 1.5px var(--accEdge2)}
+.week .b.on.today{box-shadow:inset 0 0 0 1.5px var(--accEdge2)}
 
 /* session */
 .ex{background:linear-gradient(180deg,var(--s1) 0%,var(--s1b) 100%);border-radius:var(--r);
@@ -198,8 +248,8 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
   box-shadow:inset 0 1px 0 var(--lit),inset 0 0 0 1px var(--hair),0 8px 20px rgba(0,0,0,.34);
   transition:box-shadow var(--dur) var(--ease),opacity var(--dur) var(--ease)}
 .ex.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.09),
-                      inset 0 0 0 1px rgba(245,181,68,.45),
-                      0 8px 24px rgba(0,0,0,.4),0 0 30px rgba(245,181,68,.07)}
+                      inset 0 0 0 1px var(--accEdge2),
+                      0 8px 24px rgba(0,0,0,.4),0 0 30px var(--accGlow)}
 .ex.done{opacity:.5}
 .exhead{display:flex;align-items:center;gap:12px;padding:16px;cursor:pointer}
 .exhead .nm{flex:1;min-width:0}
@@ -209,7 +259,7 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
 .pips{display:flex;gap:5px;flex:none}
 .pip{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line2);
   transition:background var(--dur) var(--ease-out),box-shadow var(--dur) var(--ease-out)}
-.pip.on{background:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.pip.on{background:var(--accent2);box-shadow:inset 0 0 0 1.5px var(--accent2)}
 .exbody{padding:0 16px 16px}
 .lastline{font-size:12.5px;color:var(--tx2);margin-bottom:14px;
   background:rgba(255,255,255,.045);padding:9px 12px;border-radius:11px}
@@ -226,7 +276,7 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
   box-shadow:inset 0 0 0 1px var(--line);
   color:var(--tx);padding:11px 12px;font-size:16px;font-family:inherit;outline:none;
   min-height:46px;margin-top:12px;resize:vertical;line-height:1.45}
-.exnote:focus{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.exnote:focus{box-shadow:inset 0 0 0 1.5px var(--accEdge2)}
 .exrow{display:flex;gap:8px;margin-top:12px}
 .exrow button{flex:1;min-height:44px;padding:10px;font-size:14px}
 .wtog{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
@@ -269,7 +319,7 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
 .rest .t.zero{color:var(--ok)}
 .rest .l{flex:1;font-size:12.5px;color:var(--tx2)}
 .rest button{width:auto;padding:10px 14px;font-size:14px;min-height:44px;flex:none}
-.restbar{position:absolute;left:0;bottom:0;height:2px;background:var(--accent);
+.restbar{position:absolute;left:0;bottom:0;height:2px;background:var(--accent2);
   transition:width 1s linear}
 
 /* toast */
@@ -285,9 +335,9 @@ nav button.on .navdot{opacity:1;transform:scale(1)}
    toast clear of the countdown rather than painting over it. */
 body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
 .toast.err{background:linear-gradient(180deg,#ff8585,var(--bad));color:#2b0707}
-.toast.pr{background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--ink)}
+.toast.pr{background:linear-gradient(180deg,#8ecabf,#4f8a80);color:#04231f}
 
-.spin{width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);
+.spin{width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent2);
   border-radius:50%;animation:sp .7s linear infinite;margin:60px auto}
 @keyframes sp{to{transform:rotate(360deg)}}
 @keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -301,7 +351,7 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
 .mhead .v{font-size:15.5px;font-weight:650;font-variant-numeric:tabular-nums;flex:none}
 .mhead .v em{font-size:12.5px;color:var(--dim);font-weight:500;font-style:normal}
 .mbar{height:5px;border-radius:99px;background:rgba(255,255,255,.055);overflow:hidden}
-.mbar i{display:block;height:100%;border-radius:99px;background:var(--accent);width:0;
+.mbar i{display:block;height:100%;border-radius:99px;background:var(--accent2);width:0;
   transition:width 900ms var(--ease-out)}
 .verdict{font-size:12.5px;color:var(--tx2);line-height:1.6;margin-top:17px;
   padding-top:15px;border-top:1px solid var(--line)}
@@ -344,7 +394,7 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
   background:rgba(255,255,255,.055);box-shadow:inset 0 0 0 1px var(--line2);
   color:var(--tx2);padding:3px 7px;border-radius:7px;margin-left:7px;
   vertical-align:2px;white-space:nowrap}
-.tag.lev{box-shadow:inset 0 0 0 1px rgba(61,220,151,.45);color:var(--aqua)}
+.tag.lev{box-shadow:inset 0 0 0 1px rgba(95,221,131,.42);color:var(--aqua)}
 
 /* viz */
 .chart{position:relative;width:100%;margin-top:6px}
@@ -372,12 +422,12 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
 .calday{aspect-ratio:1;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);display:flex;
   align-items:center;justify-content:center;font-size:12px;position:relative;color:var(--dim)}
 .calday.has{color:#fff;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.14)}
-.calday.today{outline:2px solid var(--accent);outline-offset:1px}
+.calday.today{outline:2px solid var(--accEdge2);outline-offset:1px}
 .calday.pad{opacity:.18}
 .calday .dot{position:absolute;bottom:3px;right:3px;width:6px;height:6px;border-radius:50%;
   background:var(--aqua);box-shadow:0 0 0 2px var(--bg)}
 .calday .fdot{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;
-  background:var(--accent)}
+  background:var(--accent2)}
 .calday.ate{color:var(--tx2)}
 .callegend{display:flex;align-items:center;gap:13px;margin-top:16px;font-size:11.5px;
   color:var(--dim);flex-wrap:wrap}
@@ -425,48 +475,64 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
 
     <!-- ---- TODAY ---- -->
     <section id="v-today">
-      <div class="card">
-        <div class="ring">
-          <svg width="98" height="98" viewBox="0 0 98 98">
-            <defs>
-              <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#ffca62"/>
-                <stop offset="100%" stop-color="#f5b544"/>
-              </linearGradient>
-              <linearGradient id="ringGradOk" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#5df0b4"/>
-                <stop offset="100%" stop-color="#2ec98a"/>
-              </linearGradient>
-            </defs>
-            <circle cx="49" cy="49" r="40" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="10"/>
-            <circle id="ringArc" cx="49" cy="49" r="40" fill="none" stroke="url(#ringGrad)" stroke-width="10"
-                    stroke-linecap="round" transform="rotate(-90 49 49)"/>
-          </svg>
-          <div class="lab">
-            <div class="n"><span id="ringN">0</span><span class="muted" style="font-size:20px">/4</span></div>
-            <div class="t" id="ringT">sessions this week</div>
-          </div>
-        </div>
-        <div class="week" id="weekStrip"></div>
-      </div>
-
+      <!-- The question this screen answers is "what do I do now", so the session
+           is the hero and the week ring is a companion beside it rather than a
+           card of its own competing for the top of the screen. -->
       <div class="card">
         <h2>Up next</h2>
-        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
-          <div style="font-size:28px;font-weight:750;letter-spacing:-.02em" id="nextName">Push A</div>
-          <div class="muted" style="font-size:14px" id="nextMeta"></div>
+        <div class="uphead">
+          <div class="upname">
+            <div class="nm" id="nextName">Push A</div>
+            <div class="meta" id="nextMeta"></div>
+          </div>
+          <div class="ring">
+            <svg width="62" height="62" viewBox="0 0 62 62">
+              <defs>
+                <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#8ecabf"/>
+                  <stop offset="100%" stop-color="#4f8a80"/>
+                </linearGradient>
+                <linearGradient id="ringGradOk" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#8ef0a8"/>
+                  <stop offset="100%" stop-color="#45c96a"/>
+                </linearGradient>
+              </defs>
+              <circle cx="31" cy="31" r="26" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="7"/>
+              <circle id="ringArc" cx="31" cy="31" r="26" fill="none" stroke="url(#ringGrad)"
+                      stroke-width="7" stroke-linecap="round" transform="rotate(-90 31 31)"/>
+            </svg>
+            <div class="rn"><span id="ringN">0</span><i id="ringD">/4</i></div>
+          </div>
         </div>
-        <div class="chips" style="margin:16px 0"><div id="locChips" class="chips"></div></div>
+        <div class="chips" style="margin:18px 0 15px"><div id="locChips" class="chips"></div></div>
         <button id="startBtn">Start session</button>
-        <button id="otherBtn" class="quiet sm" style="margin-top:10px">Pick a different session</button>
+        <button id="otherBtn" class="quiet sm" style="margin-top:9px">Pick a different session</button>
         <div id="otherPick" class="chips hide" style="margin-top:12px"></div>
       </div>
 
-      <div class="card tight">
-        <div class="row">
-          <button class="ghost sm" data-jump="body">Log weight</button>
-          <button class="ghost sm" id="toCardio">Log cardio</button>
-          <button class="ghost sm" data-jump="food">Log food</button>
+      <div class="card">
+        <h2>This week</h2>
+        <div class="week" id="weekStrip"></div>
+        <div class="weekline" id="ringT"></div>
+      </div>
+
+      <!-- Three tiles that report today rather than three buttons that only
+           offer to open a form. Once something is logged, Today says so. -->
+      <div class="card">
+        <h2>Logged today</h2>
+        <div class="tiles">
+          <div class="tile" id="tileWeight" data-jump="body">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 3.4s6.4 4.7 6.4 9.6A6.4 6.4 0 0 1 12 19.6a6.4 6.4 0 0 1-6.4-6.6C5.6 8.1 12 3.4 12 3.4z"/></svg>
+            <div class="v none">Log</div><div class="k">WEIGHT</div>
+          </div>
+          <div class="tile" id="tileFood" data-jump="food">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M6 3v7.4a2.4 2.4 0 0 0 4.8 0V3M8.4 10.4V21"/><path d="M17.3 3c-1.7 1.3-2.4 3.5-2.4 5.9 0 1.9.8 3.1 2.4 3.5V21"/></svg>
+            <div class="v none">Log</div><div class="k">KCAL</div>
+          </div>
+          <div class="tile" id="tileCardio">
+            <svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 13h3.4l2-4.6 3 9.2 2.2-6 1.6 3.4H21"/></svg>
+            <div class="v none">Log</div><div class="k">CARDIO</div>
+          </div>
         </div>
       </div>
 
@@ -543,7 +609,7 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
       </div>
 
       <div class="card">
-        <h2>Add to <span id="mealLab" style="color:var(--accent)">breakfast</span></h2>
+        <h2>Add to <span id="mealLab" style="color:var(--accent2)">breakfast</span></h2>
         <div class="chips" id="mealChips"></div>
         <div class="chips" id="favChips" style="margin-top:16px"></div>
         <button class="ghost sm" id="browseBtn" style="margin-top:16px">Browse all foods</button>
@@ -660,8 +726,8 @@ body.resting .toast{bottom:calc(196px + env(safe-area-inset-bottom))}
           <span><i class="swatch" style="background:#1c5cab"></i>1 session</span>
           <span><i class="swatch" style="background:#3987e5"></i>2</span>
           <span><i class="swatch" style="background:#86b6ef"></i>3+</span>
-          <span><i class="swatch" style="background:#199e70;border-radius:50%"></i>cardio</span>
-          <span><i class="swatch" style="background:#f59e0b;border-radius:50%"></i>food logged</span>
+          <span><i class="swatch" style="background:#5fdd83;border-radius:50%"></i>cardio</span>
+          <span><i class="swatch" style="background:#8ecabf;border-radius:50%"></i>food logged</span>
         </div>
         <div id="calDetail" class="hint" style="min-height:20px"></div>
       </div>
@@ -1067,7 +1133,8 @@ async function loadToday() {
     wrap.appendChild(dl); wrap.appendChild(b); strip.appendChild(wrap);
   });
   countUp($('ringN'), count, n => String(Math.round(n)), 550);
-  const frac = Math.min(1, count / WEEK_TARGET), c = 2 * Math.PI * 40;
+  $('ringD').textContent = '/' + WEEK_TARGET;
+  const frac = Math.min(1, count / WEEK_TARGET), c = 2 * Math.PI * 26;
   const arc = $('ringArc'), hit = count >= WEEK_TARGET;
   arc.setAttribute('stroke', hit ? 'url(#ringGradOk)' : 'url(#ringGrad)');
   arc.setAttribute('stroke-dasharray', c.toFixed(1));
@@ -1075,8 +1142,14 @@ async function loadToday() {
   // the next frame so the transition on #ringArc actually has somewhere to go.
   arc.setAttribute('stroke-dashoffset', c.toFixed(1));
   raf2(() => arc.setAttribute('stroke-dashoffset', (c * (1 - frac)).toFixed(1)));
-  $('ringT').textContent = count >= WEEK_TARGET ? 'target hit — anything more is bonus'
-    : (count === 0 ? 'nothing yet this week' : (WEEK_TARGET - count) + ' to go');
+  const left = WEEK_TARGET - count;
+  $('ringT').innerHTML =
+    count === 0        ? '<b>Nothing yet this week.</b> Two sessions is the floor and counts; ' +
+                         WEEK_TARGET + ' is a great week.'
+  : count >= WEEK_TARGET ? '<b>' + count + ' of ' + WEEK_TARGET + ' — target hit.</b> ' +
+                         'Anything more this week is a bonus.'
+  : '<b>' + count + ' of ' + WEEK_TARGET + ' sessions.</b> ' + left +
+    (left === 1 ? ' to go' : ' to go') + ' — two is a good week, ' + WEEK_TARGET + ' is a great one.';
 
   // next routine in rotation
   const { data: last } = await sb.from('workout')
@@ -1092,27 +1165,54 @@ async function loadToday() {
 
   renderChips($('locChips'), LOCS, S.loc, v => { S.loc = v; LS.set('loc', v); loadToday(); });
 
+  await paintTodayTiles();
+
   // recent bests
   const { data: prog } = await sb.from('exercise_progress').select('*').order('best_e1rm',{ascending:false}).limit(6);
   const box = $('prList');
   if (prog && prog.length) {
     box.innerHTML = '';
     prog.forEach(p => {
-      const d = document.createElement('div'); d.className = 'stat';
+      const d = document.createElement('div'); d.className = 'best';
       let delta = '';
       if (p.best_28d != null && p.best_prev_28d != null) {
         const n = Number(p.best_28d) - Number(p.best_prev_28d);
-        delta = ' <span class="' + (n>0?'pos':(n<0?'neg':'muted')) + '" style="font-size:13px">' +
-          (n>0?'+':'') + n.toFixed(0) + '</span>';
+        if (n !== 0) delta = '<div class="dl' + (n < 0 ? ' dn' : '') + '">' +
+          (n > 0 ? '+' : '') + n.toFixed(0) + '</div>';
       }
-      d.innerHTML = '<span class="k">' + p.name + '</span><span class="v">' +
-        Number(p.best_e1rm).toFixed(0) + delta + '</span>';
+      d.innerHTML = '<div class="n">' + p.name + '</div>' + delta +
+        '<div class="v">' + Number(p.best_e1rm).toFixed(0) + '</div>';
       box.appendChild(d);
     });
   } else {
     box.innerHTML = emptyHTML('lift','No bests yet','Log a few working sets and your best estimated 1RM per lift shows up here.');
   }
 }
+/* ---------- Today's three tiles ----------------------------------------
+   Each shows what's actually logged today, so the screen reports rather than
+   just offering. An untouched tile stays muted and says what it wants. */
+async function paintTodayTiles() {
+  const d = todayISO();
+  const [bod, nut, act] = await Promise.all([
+    sb.from('body_log').select('weight_lb').eq('logged_on', d).limit(1),
+    sb.from('daily_nutrition').select('kcal').eq('logged_on', d).limit(1),
+    sb.from('activity').select('minutes').eq('performed_on', d)
+  ]);
+  const set = (id, value, label) => {
+    const t = $(id); if (!t) return;
+    t.classList.toggle('done', value != null);
+    t.querySelector('.v').className = 'v' + (value == null ? ' none' : '');
+    t.querySelector('.v').textContent = value == null ? 'Log' : value;
+    t.querySelector('.k').textContent = label;
+  };
+  const w = (bod.data || [])[0];
+  set('tileWeight', w && w.weight_lb != null ? Number(w.weight_lb).toFixed(1) : null, 'WEIGHT');
+  const n = (nut.data || [])[0];
+  set('tileFood', n ? Math.round(Number(n.kcal)).toLocaleString() : null, 'KCAL');
+  const mins = (act.data || []).reduce((a, r) => a + (r.minutes || 0), 0);
+  set('tileCardio', mins > 0 ? mins : null, mins > 0 ? 'MIN CARDIO' : 'CARDIO');
+}
+
 function setNext(id) {
   const r = ROUTINES.find(x => x.id === id) || ROUTINES[0];
   if (!r) return;
@@ -1130,7 +1230,7 @@ $('otherBtn').onclick = () => {
   });
 };
 $('startBtn').onclick = once(async () => { await startSession(); go('lift'); }, () => $('startBtn'));
-$('toCardio').onclick = () => go('cardio');
+$('tileCardio').onclick = () => { buzz(); go('cardio'); };
 document.querySelectorAll('[data-jump]').forEach(b => { b.onclick = () => go(b.dataset.jump); });
 
 /* ---------- session ---------- */
@@ -1634,7 +1734,7 @@ async function loadStats() {
 
 /* ---------- charts ---------- */
 const NS = 'http://www.w3.org/2000/svg';
-const VIZ = { s1:'#6ea8f0', s2:'#3ddc97', grid:'rgba(255,255,255,.05)',
+const VIZ = { s1:'#6ea8f0', s2:'#5fdd83', grid:'rgba(255,255,255,.05)',
               axis:'rgba(255,255,255,.10)', muted:'#5d6675', surf:'#181b22' };
 const SEQ = ['#2b5f9e','#3f86d8','#8ab6ec'];
 let gradN = 0;   // unique ids so several charts can coexist on one page
@@ -2021,11 +2121,11 @@ function servFmt(s) {
 //       'aim'     — a band you want to land inside (calories)
 function macroBar(host, label, value, target, unit, kind) {
   const pct = target ? Math.min(1, value / target) : 0;
-  let col = 'var(--accent)';
-  if (kind === 'floor')   col = value >= target ? 'var(--ok)' : 'var(--accent)';
+  let col = 'var(--accent2)';
+  if (kind === 'floor')   col = value >= target ? 'var(--ok)' : 'var(--accent2)';
   if (kind === 'ceiling') col = value > target  ? 'var(--bad)' : 'var(--ok)';
   if (kind === 'aim')     col = (value >= target * 0.93 && value <= target * 1.07)
-                                ? 'var(--ok)' : 'var(--accent)';
+                                ? 'var(--ok)' : 'var(--accent2)';
   const row = document.createElement('div');
   row.className = 'mrow';
   row.innerHTML =
