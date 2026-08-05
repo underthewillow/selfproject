@@ -505,3 +505,306 @@ insert into public.routine_item
   ('pull_a',4,'leg_curl','good_morning',3,8,12,120,true),
   ('pull_a',5,'face_pull','rear_delt_fly',3,15,20,75,false),
   ('pull_a',6,'biceps_curl','biceps_curl',3,8,15,75,false);
+
+
+-- =============================================================================
+-- NUTRITION MODULE
+--
+-- Adds the food catalog, the daily food log, and the roll-up views that drive
+-- the Food tab. Additive only: nothing here touches the training tables.
+-- =============================================================================
+
+
+-- =============================================================================
+-- 9. REFERENCE DATA — the food catalog
+--
+-- Priced per the unit you actually use, not per 100 g. "1 can", "1 medium",
+-- "0.5 lb raw" — the way you'd say it out loud. Saturated fat and fibre are
+-- first-class columns because those are the two numbers LDL responds to.
+-- =============================================================================
+
+create table public.food (
+  id              text primary key,
+  name            text not null,
+  category        text not null,   -- Protein | Fats | Fruit & veg | Carbs | Supplements
+  unit            text not null,   -- the serving this row is priced for
+  kcal            numeric(7,1) not null default 0,
+  protein_g       numeric(6,1) not null default 0,
+  carbs_g         numeric(6,1) not null default 0,
+  fat_g           numeric(6,1) not null default 0,
+  sat_fat_g       numeric(6,1) not null default 0,
+  fibre_g         numeric(6,1) not null default 0,
+  -- Collagen is the reason this column exists. Incomplete protein: leucine
+  -- ~2.5% vs ~10.5% in whey, zero tryptophan, DIAAS near zero. The calories
+  -- are real, the grams are not. Set false and it stays out of usable protein.
+  counts_protein  boolean not null default true,
+  -- Cheap calories that don't move saturated fat. Surfaced when a day runs short.
+  is_lever        boolean not null default false,
+  -- Shown in the picker. Use it for the caveats worth seeing at log time.
+  note            text,
+  sort_order      integer not null default 100
+);
+
+
+-- =============================================================================
+-- 10. LOGGING TABLE
+--
+-- food_id points at the catalog for known items. For anything not in the
+-- catalog, leave food_id null and fill name/unit and the macro columns — the
+-- resolver below falls back to them. Either way, servings scales it.
+-- =============================================================================
+
+create table public.food_log (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references auth.users(id) on delete cascade,
+  logged_on      date not null,
+  meal           text not null default 'Breakfast',
+  food_id        text references public.food(id) on delete set null,
+  servings       numeric(6,2) not null default 1,
+  -- Only used when food_id is null (a one-off item typed in by hand).
+  name           text,
+  unit           text,
+  kcal           numeric(7,1),
+  protein_g      numeric(6,1),
+  carbs_g        numeric(6,1),
+  fat_g          numeric(6,1),
+  sat_fat_g      numeric(6,1),
+  fibre_g        numeric(6,1),
+  counts_protein boolean not null default true,
+  created_at     timestamptz not null default now(),
+  constraint food_log_has_an_item check (food_id is not null or name is not null)
+);
+
+
+-- =============================================================================
+-- 11. INDEXES
+-- =============================================================================
+
+create index on public.food_log (user_id, logged_on desc);
+create index on public.food_log (user_id, food_id);
+
+
+-- =============================================================================
+-- 12. ROW LEVEL SECURITY
+-- =============================================================================
+
+alter table public.food     enable row level security;
+alter table public.food_log enable row level security;
+
+create policy "read catalog" on public.food
+  for select to authenticated using (true);
+create policy "own rows" on public.food_log
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- =============================================================================
+-- 13. VIEWS
+--
+-- All security_invoker, so they inherit the caller's row level security.
+-- =============================================================================
+
+-- One row per logged item with the catalog joined in and servings applied.
+-- Everything downstream reads this, so the food_id / hand-typed distinction
+-- disappears at this line and never has to be handled again.
+create view public.food_log_item
+with (security_invoker = true) as
+select
+  l.id,
+  l.user_id,
+  l.logged_on,
+  l.meal,
+  l.food_id,
+  l.servings,
+  coalesce(f.name,     l.name)          as name,
+  coalesce(f.unit,     l.unit, '')      as unit,
+  coalesce(f.category, 'Other')         as category,
+  round(l.servings * coalesce(f.kcal,      l.kcal,      0), 1) as kcal,
+  round(l.servings * coalesce(f.protein_g, l.protein_g, 0), 1) as protein_g,
+  round(l.servings * coalesce(f.carbs_g,   l.carbs_g,   0), 1) as carbs_g,
+  round(l.servings * coalesce(f.fat_g,     l.fat_g,     0), 1) as fat_g,
+  round(l.servings * coalesce(f.sat_fat_g, l.sat_fat_g, 0), 1) as sat_fat_g,
+  round(l.servings * coalesce(f.fibre_g,   l.fibre_g,   0), 1) as fibre_g,
+  coalesce(f.counts_protein, l.counts_protein) as counts_protein,
+  l.created_at
+from public.food_log l
+left join public.food f on f.id = l.food_id;
+
+-- The day, totalled. usable_protein_g is the number that matters: label protein
+-- minus anything flagged counts_protein = false.
+create view public.daily_nutrition
+with (security_invoker = true) as
+select
+  user_id,
+  logged_on,
+  round(sum(kcal))                                              as kcal,
+  round(sum(protein_g), 1)                                      as protein_g,
+  round(sum(protein_g) filter (where counts_protein), 1)        as usable_protein_g,
+  round(sum(protein_g) filter (where not counts_protein), 1)    as uncounted_protein_g,
+  round(sum(carbs_g), 1)                                        as carbs_g,
+  round(sum(fat_g), 1)                                          as fat_g,
+  round(sum(sat_fat_g), 1)                                      as sat_fat_g,
+  round(sum(fibre_g), 1)                                        as fibre_g,
+  count(*)                                                      as items
+from public.food_log_item
+group by user_id, logged_on;
+
+-- The same totals split by meal, for the per-meal tables on the Food tab.
+create view public.meal_nutrition
+with (security_invoker = true) as
+select
+  user_id,
+  logged_on,
+  meal,
+  round(sum(kcal))                                       as kcal,
+  round(sum(protein_g), 1)                               as protein_g,
+  round(sum(protein_g) filter (where counts_protein), 1) as usable_protein_g,
+  round(sum(carbs_g), 1)                                 as carbs_g,
+  round(sum(fat_g), 1)                                   as fat_g,
+  round(sum(sat_fat_g), 1)                               as sat_fat_g,
+  round(sum(fibre_g), 1)                                 as fibre_g,
+  min(created_at)                                        as first_at
+from public.food_log_item
+group by user_id, logged_on, meal;
+
+-- What you actually eat, ranked. Drives the one-tap row at the top of the
+-- picker so the common case is never more than a tap away.
+create view public.food_favorite
+with (security_invoker = true) as
+select
+  user_id,
+  food_id,
+  count(*)                                       as uses,
+  max(logged_on)                                 as last_on,
+  round(avg(servings), 2)                        as usual_servings
+from public.food_log
+where food_id is not null
+group by user_id, food_id;
+
+-- 14-day nutrition trend, for the chart and for the Sunday check-in.
+create view public.nutrition_trend
+with (security_invoker = true) as
+select
+  user_id,
+  logged_on,
+  kcal,
+  usable_protein_g,
+  carbs_g,
+  fat_g,
+  sat_fat_g,
+  fibre_g,
+  round(avg(kcal) over w)                as kcal_avg7,
+  round(avg(usable_protein_g) over w, 1) as protein_avg7,
+  round(avg(sat_fat_g) over w, 1)        as sat_fat_avg7,
+  round(avg(fibre_g) over w, 1)          as fibre_avg7
+from public.daily_nutrition
+window w as (partition by user_id order by logged_on rows between 6 preceding and current row);
+
+
+-- =============================================================================
+-- 14. SEED — the catalog
+--
+-- Every item priced per the unit in the `unit` column. Sources are the branded
+-- nutrition panels where a brand is named, USDA FoodData Central otherwise.
+-- Add your own rows with the same shape; nothing in the app is hardcoded to
+-- these ids.
+-- =============================================================================
+
+insert into public.food
+  (id, name, category, unit, kcal, protein_g, carbs_g, fat_g, sat_fat_g, fibre_g,
+   counts_protein, is_lever, note, sort_order) values
+
+-- ---- Protein ----------------------------------------------------------------
+('tuna_safecatch',   'Safe Catch wild albacore', 'Protein', '1 can (5 oz)',
+   175, 35.0,  0,   5.0,  2.5, 0,   true,  false,
+   'Low-mercury tested. Two cans a day is fine at your size.', 10),
+('beef_8515',        'Ground beef 85/15',        'Protein', '0.5 lb raw',
+   488, 42.2,  0,  34.0, 12.9, 0,   true,  false,
+   'Two-thirds of a day''s saturated fat in one serving.', 11),
+('beef_937',         'Ground beef 93/7',         'Protein', '0.5 lb raw',
+   345, 48.0,  0,  16.0,  7.3, 0,   true,  false,
+   'The swap: more protein, 5.6 g less saturated fat, same micronutrients.', 12),
+('whey_levels',      'Levels vanilla whey',      'Protein', '1 scoop (32 g)',
+   130, 24.0,  3.0, 2.5,  1.0, 0,   true,  false, null, 13),
+('skyr_nonfat',      'Skyr, nonfat',             'Protein', '1 serving (150 g)',
+   105, 18.0,  6.0, 0.3,  0,   0,   true,  false, null, 14),
+('milk_1',           '1% milk',                  'Protein', '1 cup',
+   102,  8.2, 12.2, 2.4,  1.5, 0,   true,  false, null, 15),
+('egg_hardboiled',   'Hardboiled egg',           'Protein', '1 large',
+    78,  6.3,  0.6, 5.3,  1.6, 0,   true,  false,
+   'The yolk is the nutrition — choline, lutein, B12, D.', 16),
+('salmon',           'Salmon, cooked',           'Protein', '6 oz',
+   350, 38.0,  0,  20.0,  3.0, 0,   true,  true,
+   'Best protein-per-gram-of-saturated-fat on the list.', 17),
+('collagen_vital',   'Vital Proteins collagen',  'Protein', '1 tbsp (~7.4 g)',
+    26,  6.7,  0,   0,    0,   0,   false, false,
+   'Calories count, grams do not. Never counts toward the protein target.', 18),
+('milk_2',           '2% milk',                  'Protein', '1 cup',
+   122,  8.1, 12.0, 4.8,  3.1, 0,   true,  false,
+   'Reference only — the extra calories arrive as saturated fat. 1% stays.', 19),
+('milk_whole',       'Whole milk',               'Protein', '1 cup',
+   149,  7.7, 11.7, 8.0,  4.6, 0,   true,  false,
+   'Reference only — wrong lever for a high-LDL constraint.', 20),
+
+-- ---- Fats -------------------------------------------------------------------
+('mayo_chosen',      'Chosen Foods avocado-oil mayo', 'Fats', '1 tbsp',
+   100,  0,    0,  11.0,  1.5, 0,   true,  true,  null, 30),
+('olive_oil',        'Olive oil',                'Fats', '1 tbsp',
+   119,  0,    0,  13.5,  1.9, 0,   true,  true,
+   'The cheapest 120 calories you can add without touching LDL.', 31),
+('walnuts',          'Walnuts',                  'Fats', '1 oz',
+   185,  4.3,  3.9, 18.5, 1.7, 1.9, true,  true,  null, 32),
+('almonds',          'Almonds',                  'Fats', '1 oz',
+   164,  6.0,  6.1, 14.2, 1.1, 3.5, true,  true,  null, 33),
+('almond_butter',    'Almond butter',            'Fats', '2 tbsp',
+   190,  6.7,  6.0, 17.8, 1.5, 3.3, true,  true,  null, 34),
+('avocado',          'Avocado',                  'Fats', '1 medium',
+   240,  3.0, 12.8, 22.0, 3.2,10.0, true,  true,
+   'Also 10 g of fibre — two levers at once.', 35),
+
+-- ---- Fruit & veg ------------------------------------------------------------
+('banana',           'Banana',                   'Fruit & veg', '1 medium',
+   105,  1.3, 27.0,  0.4, 0.1, 3.1, true,  false, null, 50),
+('apple',            'Apple',                    'Fruit & veg', '1 medium',
+    95,  0.5, 25.1,  0.3, 0.1, 4.4, true,  false, null, 51),
+('orange',           'Orange',                   'Fruit & veg', '1 medium',
+    62,  1.2, 15.4,  0.2, 0,   3.1, true,  false, null, 52),
+('kiwi',             'Kiwi',                     'Fruit & veg', '1 medium',
+    42,  0.8, 10.1,  0.4, 0,   2.1, true,  false, null, 53),
+('carrot_raw',       'Raw carrot',               'Fruit & veg', '1 medium',
+    25,  0.6,  5.8,  0.2, 0,   1.7, true,  false, null, 54),
+('mango_solely',     'Solely mango fruit jerky', 'Fruit & veg', '1 strip',
+    70,  0.5, 17.0,  0,   0,   1.0, true,  false, null, 55),
+
+-- ---- Carbs ------------------------------------------------------------------
+('honey',            'Honey',                    'Carbs', '1 tbsp',
+    64,  0.1, 17.3,  0,   0,   0,   true,  false, null, 60),
+('oats',             'Oats, cooked',             'Carbs', '1 cup',
+   150,  5.9, 27.4,  2.5, 0.5, 4.0, true,  true,
+   'Beta-glucan — one of the few foods with a real LDL effect.', 61),
+('rice_white',       'White rice, cooked',       'Carbs', '1 cup',
+   205,  4.3, 44.5,  0.4, 0.1, 0.6, true,  true,  null, 62),
+('potato',           'Potato, baked with skin',  'Carbs', '1 large',
+   280,  7.5, 63.2,  0.4, 0.1, 6.6, true,  true,
+   '280 calories and 6.6 g fibre for a tenth of a gram of saturated fat.', 63),
+
+-- ---- Supplements ------------------------------------------------------------
+('coffee_bp',        'Bulletproof coffee + creatine', 'Supplements', '1 scoop',
+     5,  0,    0,    0,   0,   0,   true,  false,
+   '5 g creatine, 250 mg electrolytes.', 80),
+('psyllium_cap',     'Psyllium husk',            'Supplements', '1 capsule',
+     2,  0,    0.5,  0,   0,   0.5, true,  false,
+   '0.5 g soluble fibre. The LDL dose is 10–12 g/day — that is 20+ capsules, so move to powder.', 81),
+('fish_oil',         'Fish oil',                 'Supplements', '1 soft gel',
+     9,  0,    0,    1.0, 0.2, 0,   true,  false,
+   '~300 mg EPA+DHA. Triglycerides, not LDL.', 82),
+('vitamin_d',        'Vitamin D 10,000 IU',      'Supplements', '1 dose',
+     0,  0,    0,    0,   0,   0,   true,  false,
+   'Above the 4,000 IU upper limit — get 25(OH)D tested.', 83),
+('heart_soil',       'Heart & Soil Whole Package','Supplements', '6 caps',
+     5,  0,    0,    0,   0,   0,   true,  false,
+   '3 g desiccated organ — about a ninth of an ounce of liver.', 84),
+('tongkat',          'Nutricost tongkat ali',    'Supplements', 'per label',
+     0,  0,    0,    0,   0,   0,   true,  false, null, 85),
+('thorne_test',      'Thorne Adv. Testosterone Support', 'Supplements', '2 caps',
+     0,  0,    0,    0,   0,   0,   true,  false,
+   'Shilajit, luteolin, ashwagandha, L-leucine, zinc. No overlap with tongkat.', 86);

@@ -183,6 +183,53 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
 @keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
 .pop{animation:pop .2s ease-out}
 
+/* nutrition */
+.mrow{margin-bottom:15px}
+.mrow:last-child{margin-bottom:0}
+.mhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:7px}
+.mhead .k{font-size:14px;color:var(--tx2)}
+.mhead .v{font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;flex:none}
+.mhead .v em{font-size:13px;color:var(--dim);font-weight:500;font-style:normal}
+.mbar{height:7px;border-radius:99px;background:var(--card3);overflow:hidden}
+.mbar i{display:block;height:100%;border-radius:99px;background:var(--accent);
+  transition:width .35s cubic-bezier(.3,1,.5,1)}
+.verdict{font-size:13px;color:var(--tx2);line-height:1.5;margin-top:16px;
+  background:var(--card3);padding:11px 13px;border-radius:11px}
+.datebar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.datebar button{width:46px;flex:0 0 46px;padding:10px 0;font-size:19px;min-height:44px}
+.datebar .d{flex:1;text-align:center;font-size:15px;font-weight:650}
+
+.mealhd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  margin:20px 0 4px;padding-bottom:6px;border-bottom:1px solid var(--line2)}
+.mealhd:first-child{margin-top:0}
+.mealhd b{font-size:15px;font-weight:650}
+.mealhd span{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
+.fitem{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.fitem:last-child{border-bottom:none;padding-bottom:0}
+.fitem .nm{flex:1;min-width:0}
+.fitem .nm b{display:block;font-size:15px;font-weight:550;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.fitem .nm span{font-size:12px;color:var(--dim)}
+.fitem .kc{font-size:15px;font-weight:650;font-variant-numeric:tabular-nums;flex:none}
+.fitem .x{flex:none;width:36px;height:36px;border-radius:10px;background:var(--card2);
+  border:1px solid var(--line);color:var(--dim);font-size:15px;display:flex;
+  align-items:center;justify-content:center;cursor:pointer}
+
+.frow{display:flex;align-items:center;gap:12px;padding:14px 0;
+  border-bottom:1px solid var(--line);cursor:pointer}
+.frow .nm{flex:1;min-width:0}
+.frow .nm b{font-size:15px;font-weight:600}
+.frow .macros{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;margin-top:3px}
+.frow .note{font-size:12px;color:var(--tx2);font-style:italic;margin-top:4px;line-height:1.4}
+.frow .go{flex:none;color:var(--dim);font-size:20px}
+.fcat{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);
+  margin:22px 0 2px;font-weight:650}
+.tag{font-style:normal;font-size:10px;text-transform:uppercase;letter-spacing:.6px;
+  background:var(--card3);border:1px solid var(--line2);color:var(--tx2);padding:2px 6px;
+  border-radius:6px;margin-left:7px;vertical-align:2px;white-space:nowrap}
+.tag.lev{border-color:var(--aqua);color:var(--aqua)}
+.sheet.top{z-index:90}
+
 /* viz */
 .chart{position:relative;width:100%;margin-top:6px}
 .chart svg{display:block;width:100%;height:auto}
@@ -276,6 +323,7 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
         <div class="row">
           <button class="ghost sm" data-jump="body">Log weight</button>
           <button class="ghost sm" id="toCardio">Log cardio</button>
+          <button class="ghost sm" data-jump="food">Log food</button>
         </div>
       </div>
 
@@ -332,6 +380,48 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
         <button id="saveAct">Log activity</button>
       </div>
       <div class="card"><h2>Recent</h2><div id="actList"><p class="empty">Nothing logged yet.</p></div></div>
+    </section>
+
+    <!-- ---- FOOD ---- -->
+    <section id="v-food" class="hide">
+      <div class="datebar">
+        <button class="ghost" id="fPrev">&lsaquo;</button>
+        <div class="d" id="fDateLab">Today</div>
+        <button class="ghost" id="fNext">&rsaquo;</button>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <div class="big" id="fKcal">0</div>
+          <div class="muted" style="font-size:15px" id="fKcalSub">of 2,900</div>
+        </div>
+        <div id="fBars" style="margin-top:20px"></div>
+        <div class="verdict" id="fVerdict"></div>
+      </div>
+
+      <div class="card">
+        <h2>Add to <span id="mealLab" style="color:var(--accent)">breakfast</span></h2>
+        <div class="chips" id="mealChips"></div>
+        <div class="chips" id="favChips" style="margin-top:16px"></div>
+        <button class="ghost sm" id="browseBtn" style="margin-top:16px">Browse all foods</button>
+      </div>
+
+      <div class="card" id="leverCard">
+        <h2>Running short</h2>
+        <div id="leverBody"></div>
+      </div>
+
+      <div class="card">
+        <h2>Today's log</h2>
+        <div id="fLog"><p class="empty">Nothing logged yet.</p></div>
+        <button class="quiet sm" id="repeatBtn" style="margin-top:16px">Repeat yesterday</button>
+      </div>
+
+      <div class="card">
+        <h2>Last 14 days</h2>
+        <div class="chart" id="chartKcal"></div>
+        <div id="fAvgs" style="margin-top:18px"></div>
+      </div>
     </section>
 
     <!-- ---- BODY ---- -->
@@ -450,10 +540,58 @@ nav button i{display:block;font-size:19px;font-style:normal;margin-bottom:3px;li
 <nav id="nav" class="hide">
   <button data-view="today" class="on"><i>&#9673;</i>Today</button>
   <button data-view="lift"><i>&#9632;</i>Session</button>
+  <button data-view="food"><i>&#9679;</i>Food</button>
   <button data-view="body"><i>&#9678;</i>Body</button>
   <button data-view="stats"><i>&#9650;</i>Stats</button>
   <button data-view="prog"><i>&#9636;</i>Progress</button>
 </nav>
+
+<div class="sheet" id="foodSheet">
+  <div class="inner">
+    <h3>Add food</h3>
+    <div class="meta">Everything is priced per the unit you actually use.</div>
+    <input id="fSearch" placeholder="Search" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div id="fCatalog" style="margin-top:6px"></div>
+    <button class="quiet sm" id="customBtn" style="margin-top:20px">Something not on the list</button>
+    <div id="customForm" class="hide" style="margin-top:14px">
+      <div class="field"><label>What was it</label><input id="cName" placeholder="e.g. chicken thigh, 6 oz"></div>
+      <div class="row">
+        <div class="field"><label>Calories</label><input id="cKcal" type="number" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>Protein (g)</label><input id="cPro" type="number" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Carbs (g)</label><input id="cCarb" type="number" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>Fat (g)</label><input id="cFat" type="number" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Sat fat (g)</label><input id="cSat" type="number" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>Fibre (g)</label><input id="cFib" type="number" inputmode="decimal" placeholder="0"></div>
+      </div>
+      <button class="ghost sm" id="customAdd">Log it</button>
+      <p class="hint">One-off items live on the entry itself. Tell me the ones you eat
+      often and they get added to the catalog properly.</p>
+    </div>
+    <button class="ghost sm" id="foodClose" style="margin-top:20px">Close</button>
+  </div>
+</div>
+
+<div class="sheet top" id="qtySheet">
+  <div class="inner">
+    <h3 id="qName"></h3>
+    <div class="meta" id="qUnit"></div>
+    <div class="field">
+      <label>How many</label>
+      <div class="stepper">
+        <button type="button" data-step="qServ" data-d="-0.5">&minus;</button>
+        <input id="qServ" type="number" inputmode="decimal" step="0.25" value="1">
+        <button type="button" data-step="qServ" data-d="0.5">+</button>
+      </div>
+    </div>
+    <div id="qPreview" style="margin-bottom:18px"></div>
+    <button id="qAdd">Add</button>
+    <button class="quiet sm" id="qClose" style="margin-top:10px">Cancel</button>
+  </div>
+</div>
 
 <div class="sheet" id="daySheet">
   <div class="inner">
@@ -480,6 +618,19 @@ const SUPABASE_URL = 'https://nzhgrimkakdioclcheoq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q4-bOc9uMog7sNBd5evLbQ_zxTvik7S';
 const WEEK_TARGET  = 4;   // sessions/week the progress ring counts toward
 const MODE         = 'recomp';   // 'bulk' | 'recomp' | 'cut' — drives the weight verdict
+
+// Daily nutrition targets. The calorie number is an estimate — the scale is the
+// instrument that settles it. Protein is usable protein: collagen and other
+// incomplete sources are flagged in the food catalog and never counted here.
+// Sat fat is 6% of calories, the threshold where LDL actually responds; fat is
+// ~27% of calories; fibre is the general 30 g floor.
+const NUT = {
+  kcal:    2900,
+  protein:  185,   // grams of usable protein
+  fat:       88,
+  sat:       19,
+  fibre:     30
+};
 /* ========================= end of config ================================= */
 
 // Weekly change in the 7-day average, in lb, that each mode is aiming for.
@@ -518,6 +669,7 @@ const BARBELL = ['squat','bench_press','incline_press','ohp','hinge_rdl','deadli
 const PLATES = [45,35,25,10,5,2.5];
 
 let USER = null, CATALOG = [], BY_ID = {}, ROUTINES = [], ITEMS = {}, PRS = {};
+let FOODS = [], FOOD_BY_ID = {};
 let S = {                       // live session
   routineId: null, name: null, loc: LS.get('loc','Golds'),
   workoutId: null, items: [], activeIdx: 0, sets: {}, notes: {},
@@ -624,12 +776,15 @@ $('restAdd').onclick = () => { restLeft += 30; restTotal = Math.max(restTotal, r
 
 /* ---------- catalog + routines ---------- */
 async function loadCatalog() {
-  const [ex, rt, ri, pr] = await Promise.all([
+  const [ex, rt, ri, pr, fd] = await Promise.all([
     sb.from('exercise').select('*').order('sort_order'),
     sb.from('routine').select('*').order('position'),
     sb.from('routine_item').select('*').order('routine_id').order('position'),
-    sb.from('exercise_pr').select('*')
+    sb.from('exercise_pr').select('*'),
+    sb.from('food').select('*').order('sort_order')
   ]);
+  FOODS = fd.data || []; FOOD_BY_ID = {};
+  FOODS.forEach(f => { FOOD_BY_ID[f.id] = f; });
   CATALOG = ex.data || []; BY_ID = {};
   CATALOG.forEach(e => { BY_ID[e.id] = e; });
   ROUTINES = rt.data || []; ITEMS = {};
@@ -1495,8 +1650,378 @@ async function loadProgress(){
   barChart($('chartVolume'),src.slice(-12),' sets',progMuscle==='All'?null:10);
 }
 
+/* ============================================================================
+   FOOD
+
+   The unit of logging is (food, servings, meal, date). Everything downstream —
+   totals, per-meal tables, the trend — is derived, so a mislog is one tap to
+   undo and nothing has to be kept in sync by hand.
+   ========================================================================== */
+const MEALS = ['Breakfast','Lunch','Dinner','Dinner 2','Snack','Supplements'];
+const FCATS = ['Protein','Fats','Carbs','Fruit & veg','Supplements','Other'];
+let foodDate = todayISO(), mealSel = null, FAVS = {}, DAYLOG = [], qtyPick = null;
+
+function autoMeal() {
+  const h = new Date().getHours();
+  return h < 11 ? 'Breakfast' : h < 15 ? 'Lunch' : h < 21 ? 'Dinner' : 'Snack';
+}
+const n1 = v => Math.round(Number(v || 0) * 10) / 10;
+const gm = v => (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : n1(v));
+const kcalFmt = v => Math.round(v).toLocaleString();
+
+// Serving counts read better as "1", "1.75", "2.5" than "1.00".
+function servFmt(s) {
+  const n = Number(s);
+  return (Math.abs(n - Math.round(n)) < 0.005) ? String(Math.round(n))
+       : String(Math.round(n * 100) / 100);
+}
+
+/* ---------- the four bars ---------- */
+// kind: 'floor'   — more is better, green once you clear it (protein, fibre)
+//       'ceiling' — less is better, red once you pass it (sat fat, fat)
+//       'aim'     — a band you want to land inside (calories)
+function macroBar(host, label, value, target, unit, kind) {
+  const pct = target ? Math.min(1, value / target) : 0;
+  let col = 'var(--accent)';
+  if (kind === 'floor')   col = value >= target ? 'var(--ok)' : 'var(--accent)';
+  if (kind === 'ceiling') col = value > target  ? 'var(--bad)' : 'var(--ok)';
+  if (kind === 'aim')     col = (value >= target * 0.93 && value <= target * 1.07)
+                                ? 'var(--ok)' : 'var(--accent)';
+  const row = document.createElement('div');
+  row.className = 'mrow';
+  row.innerHTML =
+    '<div class="mhead"><span class="k">' + label + '</span>' +
+    '<span class="v">' + gm(value) + '<em>/' + target + ' ' + unit + '</em></span></div>' +
+    '<div class="mbar"><i style="width:' + (pct * 100).toFixed(1) + '%;background:' + col + '"></i></div>';
+  host.appendChild(row);
+}
+
+/* ---------- the day ---------- */
+function paintFoodTotals() {
+  const t = { kcal:0, pro:0, upro:0, carb:0, fat:0, sat:0, fib:0 };
+  DAYLOG.forEach(r => {
+    t.kcal += Number(r.kcal); t.pro += Number(r.protein_g);
+    if (r.counts_protein) t.upro += Number(r.protein_g);
+    t.carb += Number(r.carbs_g); t.fat += Number(r.fat_g);
+    t.sat  += Number(r.sat_fat_g); t.fib += Number(r.fibre_g);
+  });
+
+  $('fKcal').textContent = kcalFmt(t.kcal);
+  const left = Math.round(NUT.kcal - t.kcal);
+  $('fKcalSub').textContent = 'of ' + NUT.kcal.toLocaleString() + ' — ' +
+    (left > 0 ? kcalFmt(left) + ' to go' : kcalFmt(Math.abs(left)) + ' over');
+
+  const bars = $('fBars'); bars.innerHTML = '';
+  macroBar(bars, 'Usable protein', t.upro, NUT.protein, 'g', 'floor');
+  macroBar(bars, 'Saturated fat',  t.sat,  NUT.sat,     'g', 'ceiling');
+  macroBar(bars, 'Fibre',          t.fib,  NUT.fibre,   'g', 'floor');
+  macroBar(bars, 'Fat',            t.fat,  NUT.fat,     'g', 'ceiling');
+  const carbs = document.createElement('div');
+  carbs.className = 'mrow';
+  carbs.innerHTML = '<div class="mhead" style="margin-bottom:0"><span class="k">Carbs</span>' +
+                    '<span class="v">' + gm(t.carb) + '<em> g — no target</em></span></div>';
+  bars.appendChild(carbs);
+
+  $('fVerdict').innerHTML = verdictFor(t, left);
+  paintLevers(left);
+}
+
+function verdictFor(t, left) {
+  if (!DAYLOG.length) return 'Nothing logged yet. Tap a food below &mdash; the list is everything ' +
+    'you already eat, priced per the unit you actually use.';
+  const bits = [];
+
+  if (left > 500)      bits.push('<b>Well under.</b> The fix is carbohydrate, not effort &mdash; ' +
+                                 'rice, potato, oats. Force-feeding protein is not it.');
+  else if (left > 200) bits.push('<b>Short by ' + kcalFmt(left) + '.</b> A tablespoon of olive oil and an ' +
+                                 'ounce of walnuts closes it for under 4 g of saturated fat.');
+  else if (left > -150) bits.push('<b>On target.</b>');
+  else                  bits.push('<b>' + kcalFmt(Math.abs(left)) + ' over.</b> One day is noise. ' +
+                                 'If it becomes the pattern, the scale will say so.');
+
+  const collagen = t.pro - t.upro;
+  if (collagen > 1) bits.push('Of ' + gm(t.pro) + ' g of label protein, <b>' + gm(collagen) +
+    ' g is collagen and does not count</b> &mdash; usable is ' + gm(t.upro) + ' g.');
+  else if (t.upro >= NUT.protein) bits.push('Protein target cleared.');
+
+  if (t.sat > NUT.sat) bits.push('Saturated fat ' + gm(t.sat - NUT.sat) +
+    ' g over &mdash; judge that across the week, not the day.');
+  else if (t.fib < NUT.fibre * 0.7 && DAYLOG.length > 6)
+    bits.push('Fibre is light. Psyllium powder, oats or an avocado are the cheapest fixes.');
+
+  return bits.join(' ');
+}
+
+/* ---------- the lever list ---------- */
+function paintLevers(left) {
+  const show = DAYLOG.length > 0 && left > 200;
+  $('leverCard').classList.toggle('hide', !show);
+  if (!show) return;
+  const box = $('leverBody'); box.innerHTML = '';
+  const intro = document.createElement('p');
+  intro.className = 'hint';
+  intro.style.marginTop = '0';
+  intro.innerHTML = 'The cheapest ' + left + ' calories that don\'t touch your LDL constraint. ' +
+                    'Tap to log.';
+  box.appendChild(intro);
+  // Ranked by how close one serving gets you to the gap, so the top of the list
+  // is the single thing to eat rather than a menu to think about.
+  FOODS.filter(f => f.is_lever)
+       .sort((a,b) => Math.abs(Number(a.kcal) - left) - Math.abs(Number(b.kcal) - left))
+       .slice(0, 6)
+       .forEach(f => box.appendChild(foodRow(f, true)));
+}
+
+/* ---------- one catalog row ---------- */
+function foodRow(f, compact) {
+  const d = document.createElement('div');
+  d.className = 'frow';
+  const tags = (!f.counts_protein ? '<em class="tag">grams don\'t count</em>' : '') +
+               (f.is_lever && !compact ? '<em class="tag lev">lever</em>' : '');
+  const macros = Math.round(f.kcal) + ' kcal &middot; ' + gm(f.protein_g) + 'p &middot; ' +
+                 gm(f.carbs_g) + 'c &middot; ' + gm(f.fat_g) + 'f &middot; ' +
+                 gm(f.sat_fat_g) + ' sat &middot; ' + gm(f.fibre_g) + ' fibre';
+  d.innerHTML = '<div class="nm"><b>' + f.name + '</b>' + tags +
+    '<div class="macros">' + f.unit + ' &mdash; ' + macros + '</div>' +
+    (f.note && !compact ? '<div class="note">' + f.note + '</div>' : '') +
+    '</div><div class="go">&rsaquo;</div>';
+  d.onclick = () => { buzz(); openQty(f); };
+  return d;
+}
+
+/* ---------- quantity sheet ---------- */
+function openQty(f) {
+  qtyPick = f;
+  $('qName').textContent = f.name;
+  $('qUnit').textContent = f.unit + (f.note ? ' — ' + f.note : '');
+  const fav = FAVS[f.id];
+  $('qServ').value = fav && fav.usual_servings ? servFmt(fav.usual_servings) : '1';
+  paintQty();
+  $('qtySheet').classList.add('on');
+}
+function paintQty() {
+  if (!qtyPick) return;
+  const s = Math.max(0, parseFloat($('qServ').value || '0'));
+  const f = qtyPick, box = $('qPreview');
+  box.innerHTML = '';
+  const add = (k, v) => statRow(box, k, v);
+  add('Calories',   kcalFmt(s * f.kcal));
+  add(f.counts_protein ? 'Protein' : 'Protein (uncounted)', gm(s * f.protein_g) + ' g');
+  add('Carbs',      gm(s * f.carbs_g) + ' g');
+  add('Fat',        gm(s * f.fat_g) + ' g');
+  add('Saturated',  gm(s * f.sat_fat_g) + ' g');
+  add('Fibre',      gm(s * f.fibre_g) + ' g');
+}
+$('qServ').oninput = paintQty;
+$('qClose').onclick = () => { buzz(); $('qtySheet').classList.remove('on'); qtyPick = null; };
+$('qAdd').onclick = async () => {
+  if (!qtyPick) return;
+  const s = Math.max(0, parseFloat($('qServ').value || '0'));
+  if (!s) return toast('How many?','err');
+  const { error } = await sb.from('food_log').insert({
+    user_id: USER.id, logged_on: foodDate, meal: mealSel, food_id: qtyPick.id, servings: s
+  });
+  if (error) return toast(error.message,'err');
+  buzz();
+  toast(qtyPick.name + ' added');
+  $('qtySheet').classList.remove('on');
+  $('foodSheet').classList.remove('on');
+  qtyPick = null;
+  loadFood();
+};
+
+/* ---------- catalog sheet ---------- */
+function paintCatalog() {
+  const q = ($('fSearch').value || '').trim().toLowerCase();
+  const box = $('fCatalog'); box.innerHTML = '';
+  const hits = FOODS.filter(f => !q || f.name.toLowerCase().includes(q) ||
+                                 f.category.toLowerCase().includes(q));
+  if (!hits.length) { box.innerHTML = '<p class="empty">Nothing matches.</p>'; return; }
+  FCATS.forEach(cat => {
+    const inCat = hits.filter(f => f.category === cat);
+    if (!inCat.length) return;
+    const h = document.createElement('div');
+    h.className = 'fcat'; h.textContent = cat;
+    box.appendChild(h);
+    inCat.forEach(f => box.appendChild(foodRow(f)));
+  });
+}
+$('fSearch').oninput = paintCatalog;
+$('browseBtn').onclick = () => {
+  buzz();
+  $('fSearch').value = '';
+  $('customForm').classList.add('hide');
+  paintCatalog();
+  $('foodSheet').classList.add('on');
+};
+$('foodClose').onclick = () => { buzz(); $('foodSheet').classList.remove('on'); };
+$('customBtn').onclick = () => { buzz(); $('customForm').classList.toggle('hide'); };
+$('customAdd').onclick = async () => {
+  const name = ($('cName').value || '').trim();
+  if (!name) return toast('Give it a name','err');
+  const num = id => { const v = parseFloat($(id).value); return isNaN(v) ? 0 : v; };
+  const { error } = await sb.from('food_log').insert({
+    user_id: USER.id, logged_on: foodDate, meal: mealSel, servings: 1,
+    name: name, unit: 'one-off',
+    kcal: num('cKcal'), protein_g: num('cPro'), carbs_g: num('cCarb'),
+    fat_g: num('cFat'), sat_fat_g: num('cSat'), fibre_g: num('cFib')
+  });
+  if (error) return toast(error.message,'err');
+  ['cName','cKcal','cPro','cCarb','cFat','cSat','cFib'].forEach(i => { $(i).value = ''; });
+  $('customForm').classList.add('hide');
+  $('foodSheet').classList.remove('on');
+  toast(name + ' added');
+  loadFood();
+};
+
+/* ---------- the log ---------- */
+function paintFoodLog() {
+  const box = $('fLog');
+  if (!DAYLOG.length) { box.innerHTML = '<p class="empty">Nothing logged yet.</p>'; return; }
+  box.innerHTML = '';
+  const seen = MEALS.filter(m => DAYLOG.some(r => r.meal === m))
+    .concat([...new Set(DAYLOG.map(r => r.meal))].filter(m => !MEALS.includes(m)));
+
+  seen.forEach(meal => {
+    const rows = DAYLOG.filter(r => r.meal === meal);
+    const sk = rows.reduce((a,r) => a + Number(r.kcal), 0);
+    const sp = rows.reduce((a,r) => a + (r.counts_protein ? Number(r.protein_g) : 0), 0);
+    const ss = rows.reduce((a,r) => a + Number(r.sat_fat_g), 0);
+    const h = document.createElement('div');
+    h.className = 'mealhd';
+    h.innerHTML = '<b>' + meal + '</b><span>' + kcalFmt(sk) + ' kcal &middot; ' +
+                  gm(sp) + 'g protein &middot; ' + gm(ss) + 'g sat</span>';
+    box.appendChild(h);
+    rows.forEach(r => {
+      const d = document.createElement('div');
+      d.className = 'fitem';
+      const qty = (Number(r.servings) === 1 ? '' : servFmt(r.servings) + ' × ') + (r.unit || '');
+      d.innerHTML = '<div class="nm"><b>' + r.name + '</b><span>' + qty + '</span></div>' +
+                    '<div class="kc">' + kcalFmt(r.kcal) + '</div>' +
+                    '<div class="x">&times;</div>';
+      d.querySelector('.x').onclick = async () => {
+        buzz();
+        const { error } = await sb.from('food_log').delete().eq('id', r.id);
+        if (error) return toast(error.message,'err');
+        toast('Removed');
+        loadFood();
+      };
+      box.appendChild(d);
+    });
+  });
+}
+
+/* ---------- frequent chips ---------- */
+function paintFavs() {
+  const box = $('favChips'); box.innerHTML = '';
+  const ranked = Object.values(FAVS)
+    .sort((a,b) => (b.uses - a.uses) || String(b.last_on).localeCompare(String(a.last_on)))
+    .map(f => FOOD_BY_ID[f.food_id]).filter(Boolean);
+  // Before there's any history, seed the row from the catalog so day one isn't
+  // a blank screen with a Browse button.
+  const list = (ranked.length ? ranked : FOODS.filter(f => !f.is_lever && f.category !== 'Supplements'))
+    .slice(0, 10);
+  list.forEach(f => {
+    const c = document.createElement('div');
+    c.className = 'chip';
+    c.textContent = f.name;
+    c.onclick = () => { buzz(); openQty(f); };
+    box.appendChild(c);
+  });
+}
+
+/* ---------- date + meal ---------- */
+function shiftFoodDate(days) {
+  const d = new Date(foodDate + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  if (isoOf(d) > todayISO()) return;
+  foodDate = isoOf(d);
+  loadFood();
+}
+$('fPrev').onclick = () => { buzz(); shiftFoodDate(-1); };
+$('fNext').onclick = () => { buzz(); shiftFoodDate(1); };
+
+function paintFoodDate() {
+  const t = todayISO();
+  const y = isoOf(new Date(Date.now() - 864e5));
+  const d = new Date(foodDate + 'T12:00:00');
+  $('fDateLab').textContent = foodDate === t ? 'Today' : foodDate === y ? 'Yesterday'
+    : d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+  $('fNext').disabled = foodDate === t;
+  $('fNext').style.opacity = foodDate === t ? .35 : 1;
+}
+
+function paintMeals() {
+  if (!mealSel) mealSel = autoMeal();
+  $('mealLab').textContent = mealSel.toLowerCase();
+  renderChips($('mealChips'), MEALS, mealSel, v => { mealSel = v; paintMeals(); });
+}
+
+/* ---------- repeat yesterday ---------- */
+$('repeatBtn').onclick = async () => {
+  buzz();
+  const d = new Date(foodDate + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  const prev = isoOf(d);
+  const { data, error } = await sb.from('food_log').select('*')
+    .eq('logged_on', prev).order('created_at');
+  if (error) return toast(error.message,'err');
+  if (!data || !data.length) return toast('Nothing logged on ' + prev,'err');
+  const rows = data.map(r => ({
+    user_id: USER.id, logged_on: foodDate, meal: r.meal, food_id: r.food_id,
+    servings: r.servings, name: r.name, unit: r.unit, kcal: r.kcal,
+    protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
+    sat_fat_g: r.sat_fat_g, fibre_g: r.fibre_g, counts_protein: r.counts_protein
+  }));
+  const { error: e2 } = await sb.from('food_log').insert(rows);
+  if (e2) return toast(e2.message,'err');
+  toast(rows.length + ' items copied');
+  loadFood();
+};
+
+/* ---------- load ---------- */
+async function loadFood() {
+  paintFoodDate();
+  paintMeals();
+  const [log, fav, trend] = await Promise.all([
+    sb.from('food_log_item').select('*').eq('logged_on', foodDate).order('created_at'),
+    sb.from('food_favorite').select('*'),
+    sb.from('nutrition_trend').select('*').order('logged_on', { ascending:false }).limit(14)
+  ]);
+  DAYLOG = log.data || [];
+  FAVS = {}; (fav.data || []).forEach(f => { FAVS[f.food_id] = f; });
+  paintFavs();
+  paintFoodTotals();
+  paintFoodLog();
+
+  const t = (trend.data || []).slice().reverse();
+  $('repeatBtn').classList.toggle('hide', DAYLOG.length > 0);
+  if (t.length < 2) {
+    emptyChart($('chartKcal'), 'Two days of logging and the trend shows up here.');
+    $('fAvgs').innerHTML = '';
+    return;
+  }
+  barChart($('chartKcal'), t.map(r => ({ label:r.logged_on.slice(5), value:Number(r.kcal) })),
+           ' kcal', NUT.kcal);
+  const last = t[t.length - 1], box = $('fAvgs'); box.innerHTML = '';
+  statRow(box, '7-day calories',       kcalFmt(last.kcal_avg7),
+          Number(last.kcal_avg7) < NUT.kcal * 0.9 ? 'neg' : '');
+  statRow(box, '7-day usable protein', gm(last.protein_avg7) + ' g',
+          Number(last.protein_avg7) >= NUT.protein ? 'pos' : '');
+  statRow(box, '7-day saturated fat',  gm(last.sat_fat_avg7) + ' g',
+          Number(last.sat_fat_avg7) > NUT.sat ? 'neg' : 'pos');
+  statRow(box, '7-day fibre',          gm(last.fibre_avg7) + ' g',
+          Number(last.fibre_avg7) >= NUT.fibre ? 'pos' : '');
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.innerHTML = 'The weekly average is the number to act on. A single day tells you ' +
+    'nothing you can use &mdash; the scale settles whether ' + NUT.kcal.toLocaleString() +
+    ' was the right estimate in the first place.';
+  box.appendChild(note);
+}
+
 /* ---------- nav ---------- */
-const VIEWS = ['today','lift','cardio','body','stats','prog'];
+const VIEWS = ['today','lift','cardio','food','body','stats','prog'];
 function go(view){
   VIEWS.forEach(v => $('v-'+v).classList.toggle('hide', v !== view));
   document.querySelectorAll('nav button').forEach(b =>
@@ -1505,6 +2030,7 @@ function go(view){
   if(view==='prog')   loadProgress();
   if(view==='stats')  loadStats();
   if(view==='cardio') loadActivity();
+  if(view==='food')   { foodDate = todayISO(); mealSel = autoMeal(); loadFood(); }
   if(view==='body')   loadBodyForDate();
   window.scrollTo(0,0);
 }

@@ -54,6 +54,23 @@ sessions per week against target, estimated 1RM per exercise, and weekly volume.
 **Goals** for a lift target, a bodyweight target, or sessions per week. They check
 themselves against your logged data and stamp the date they're met.
 
+**Food, tracked in the units you actually use.** A catalog of your own foods priced per "1
+can", "0.5 lb raw", "1 medium" — not per 100 grams — so logging a meal is a tap and a
+number, never a weigh-and-convert. Calories, protein, carbs and fat, plus **saturated fat
+and fibre as first-class columns**, because those are the two a lipid panel responds to.
+Items you eat often rise to a one-tap row on their own. "Repeat yesterday" copies a whole
+day when the day was the same.
+
+**Usable protein, not label protein.** Any catalog item can be flagged as not counting
+toward the protein target — collagen is the built-in case, since it's incomplete protein
+whose calories are real and whose grams aren't. The day's total shows both numbers and how
+far apart they are.
+
+**A calorie gap you can act on.** When the day runs short, the app surfaces the foods that
+close it without moving saturated fat, ranked by how close one serving gets you.
+Under-eating is the usual failure mode on a high-protein diet, and it's invisible without
+a number.
+
 **Cardio and everything else** — swimming, cycling, walks, sprints, hikes.
 
 ---
@@ -151,8 +168,38 @@ insert into public.exercise_muscle (exercise_id, muscle, fraction) values
 - `fraction` is 1.0 for a primary mover, 0.5 for a meaningful secondary. Don't inflate it;
   the volume numbers are only useful if the attribution is honest.
 
+### Your own foods
+
+The `food` table is seeded with a starter catalog, but the whole point is that it holds
+*your* foods, priced per the serving you'd say out loud.
+
+```sql
+insert into public.food
+  (id, name, category, unit, kcal, protein_g, carbs_g, fat_g, sat_fat_g, fibre_g,
+   counts_protein, is_lever, note, sort_order) values
+  ('chicken_thigh','Chicken thigh, boneless','Protein','6 oz cooked',
+   340, 42.0, 0, 18.0, 5.0, 0, true, false, null, 21);
+```
+
+- `unit` is a label, not a conversion. Price the row for however you actually eat it —
+  "1 can", "0.5 lb raw", "2 tbsp". Servings scale from there.
+- `category` groups it in the picker: `Protein`, `Fats`, `Carbs`, `Fruit & veg`,
+  `Supplements`.
+- `counts_protein = false` keeps its grams out of the usable-protein total while still
+  counting its calories. Collagen and gelatin are the cases that matter.
+- `is_lever = true` puts it in the short-day list. Reserve it for calorie-dense items that
+  are low in saturated fat, or the list stops meaning anything.
+- `note` shows in the picker and on the quantity sheet. Use it for the caveat you want to
+  see at the moment you're deciding.
+
+One-off items don't need a catalog row — "Something not on the list" in the picker stores
+the macros on the log entry itself.
+
 ### Other knobs
 
+- `NUT` in `index.html` — daily calorie, protein, fat, saturated fat and fibre targets.
+  The defaults are a worked example, not a prescription: protein at roughly 1 g per pound
+  of bodyweight, saturated fat at 6% of calories, fat at ~27%, fibre at 30 g.
 - `WEEK_TARGET` in `index.html` — sessions per week the progress ring counts toward.
 - `PLATES` and `BARBELL` in `index.html` — plate denominations and which exercises get the
   plate calculator. Change `PLATES` to `[25,20,15,10,5,2.5,1.25]` and the bar weight in
